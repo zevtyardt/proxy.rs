@@ -1,9 +1,11 @@
 use std::{collections::HashMap, net::IpAddr};
 
-use include_dir::{include_dir, Dir};
+use async_once::AsyncOnce;
+use lazy_static::lazy_static;
 use maxminddb::{geoip2::City, Reader};
+use std::sync::{Arc, Mutex};
 
-static DATA_DIR: Dir = include_dir!("src/data/");
+use crate::utils;
 
 #[derive(Debug)]
 pub struct GeoData {
@@ -27,26 +29,25 @@ impl GeoData {
     }
 }
 
-// TODO: implement debug
-pub struct Resolver<'a> {
-    geo_city: Reader<&'a [u8]>,
-    dns_resolver: trust_dns_resolver::Resolver,
-    cached_hosts: HashMap<String, String>,
-    ext_ip_hosts: Vec<&'a str>,
+lazy_static! {
+    static ref DNS_RESOLVER: trust_dns_resolver::Resolver = trust_dns_resolver::Resolver::new(
+        trust_dns_resolver::config::ResolverConfig::default(),
+        trust_dns_resolver::config::ResolverOpts::default(),
+    )
+    .unwrap();
+    static ref GEO_CITY: AsyncOnce<Reader<Vec<u8>>> =
+        AsyncOnce::new(async { utils::open_geolite_db().await.unwrap() });
 }
 
-impl Resolver<'_> {
+#[derive(Debug, Clone)]
+pub struct Resolver {
+    cached_hosts: Arc<Mutex<HashMap<String, String>>>,
+    ext_ip_hosts: Vec<String>,
+}
+
+impl Resolver {
     pub fn new() -> Self {
-        let geolite2_mmdb = DATA_DIR.get_file("GeoLite2-City.mmdb").unwrap();
-        let geo_city = Reader::from_source(geolite2_mmdb.contents()).unwrap();
-
-        let dns_resolver = trust_dns_resolver::Resolver::new(
-            trust_dns_resolver::config::ResolverConfig::default(),
-            trust_dns_resolver::config::ResolverOpts::default(),
-        )
-        .unwrap();
-
-        let ext_ip_hosts = vec![
+        let ext_ip_hosts: Vec<String> = vec![
             "https://wtfismyip.com/text",
             "http://api.ipify.org/",
             "http://ipinfo.io/ip",
@@ -54,12 +55,14 @@ impl Resolver<'_> {
             "http://myexternalip.com/raw",
             "http://ipinfo.io/ip",
             "http://ifconfig.io/ip",
-        ];
+        ]
+        .iter()
+        .map(|x| x.to_string())
+        .collect();
 
+        let cached_hosts = Arc::new(Mutex::new(HashMap::new()));
         Resolver {
-            geo_city,
-            dns_resolver,
-            cached_hosts: HashMap::new(),
+            cached_hosts,
             ext_ip_hosts,
         }
     }
@@ -72,9 +75,9 @@ impl Resolver<'_> {
         ipaddress.is_some()
     }
 
-    pub fn get_ip_info(&self, ip_address: IpAddr) -> GeoData {
+    pub async fn get_ip_info(&self, ip_address: IpAddr) -> GeoData {
         let mut geodata = GeoData::default();
-        if let Ok(lookup) = self.geo_city.lookup::<City>(ip_address) {
+        if let Ok(lookup) = GEO_CITY.get().await.lookup::<City>(ip_address) {
             if let Some(country) = &lookup.country {
                 if let Some(country_iso_code) = &country.iso_code {
                     geodata.iso_code = country_iso_code.to_string()
@@ -121,28 +124,31 @@ impl Resolver<'_> {
         geodata
     }
 
-    pub fn resolve(&mut self, host: &str) -> Option<String> {
-        if self.host_is_ip(host) {
+    pub fn resolve(&mut self, host: String) -> Option<String> {
+        if self.host_is_ip(&host) {
             return Some(host.to_string());
         }
 
-        if let Some(cached_host) = self.cached_hosts.get(host) {
+        if let Some(cached_host) = self.cached_hosts.lock().unwrap().get(&host) {
             return Some(cached_host.to_string());
         }
 
-        if let Ok(response) = self.dns_resolver.lookup_ip(host) {
+        if let Ok(response) = DNS_RESOLVER.lookup_ip(&host) {
             if let Some(ip) = response.iter().next() {
-                self.cached_hosts.insert(host.to_string(), ip.to_string());
+                self.cached_hosts
+                    .lock()
+                    .unwrap()
+                    .insert(host.to_string(), ip.to_string());
                 return Some(ip.to_string());
             }
         }
         None
     }
 
-    pub fn get_real_ext_ip(&self) -> Option<String> {
+    pub async fn get_real_ext_ip(&self) -> Option<String> {
         for ext_ip_host in &self.ext_ip_hosts {
-            if let Ok(response) = reqwest::blocking::get(ext_ip_host.to_string()) {
-                if let Ok(body) = response.text() {
+            if let Ok(response) = reqwest::get(ext_ip_host.to_string()).await {
+                if let Ok(body) = response.text().await {
                     let ip = body.trim();
                     if self.host_is_ip(ip) {
                         return Some(ip.to_string());

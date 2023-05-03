@@ -3,8 +3,8 @@ A python proxybroker port written with rust
 
 # Todo
 - [x] resolver.rs
+- [x] judges.rs
 - [ ] providers/
-- [ ] judges.rs
 - [ ] negotiator.rs
 
 # Note

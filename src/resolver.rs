@@ -5,7 +5,7 @@ use lazy_static::lazy_static;
 use maxminddb::{geoip2::City, Reader};
 use std::sync::{Arc, Mutex};
 
-use crate::utils;
+use crate::utils::geolite_database::open_geolite_db;
 
 #[derive(Debug)]
 pub struct GeoData {
@@ -36,7 +36,7 @@ lazy_static! {
     )
     .unwrap();
     pub static ref GEO_CITY: AsyncOnce<Reader<Vec<u8>>> =
-        AsyncOnce::new(async { utils::open_geolite_db().await.unwrap() });
+        AsyncOnce::new(async { open_geolite_db().await.unwrap() });
     pub static ref CACHED_HOSTS: Arc<Mutex<HashMap<String, String>>> =
         Arc::new(Mutex::new(HashMap::new()));
 }

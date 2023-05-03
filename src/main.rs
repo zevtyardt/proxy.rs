@@ -17,7 +17,7 @@ fn main() {
             let lookup = resolver.get_ip_info(my_ip).await;
             println!("{lookup:#?}");
 
-            for _ in 0..2 {
+            for _ in 0..3 {
                 let c_resolver = resolver.clone();
                 tokio::task::spawn_blocking(move || {
                     let ip = c_resolver.resolve("yahoo.com".to_string());

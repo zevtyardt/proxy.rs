@@ -30,18 +30,19 @@ impl GeoData {
 }
 
 lazy_static! {
-    static ref DNS_RESOLVER: trust_dns_resolver::Resolver = trust_dns_resolver::Resolver::new(
+    pub static ref DNS_RESOLVER: trust_dns_resolver::Resolver = trust_dns_resolver::Resolver::new(
         trust_dns_resolver::config::ResolverConfig::default(),
         trust_dns_resolver::config::ResolverOpts::default(),
     )
     .unwrap();
-    static ref GEO_CITY: AsyncOnce<Reader<Vec<u8>>> =
+    pub static ref GEO_CITY: AsyncOnce<Reader<Vec<u8>>> =
         AsyncOnce::new(async { utils::open_geolite_db().await.unwrap() });
+    pub static ref CACHED_HOSTS: Arc<Mutex<HashMap<String, String>>> =
+        Arc::new(Mutex::new(HashMap::new()));
 }
 
 #[derive(Debug, Clone)]
 pub struct Resolver {
-    cached_hosts: Arc<Mutex<HashMap<String, String>>>,
     ext_ip_hosts: Vec<String>,
 }
 
@@ -60,11 +61,7 @@ impl Resolver {
         .map(|x| x.to_string())
         .collect();
 
-        let cached_hosts = Arc::new(Mutex::new(HashMap::new()));
-        Resolver {
-            cached_hosts,
-            ext_ip_hosts,
-        }
+        Resolver { ext_ip_hosts }
     }
 
     pub fn host_is_ip(&self, ipv4: &str) -> bool {
@@ -124,21 +121,18 @@ impl Resolver {
         geodata
     }
 
-    pub fn resolve(&mut self, host: String) -> Option<String> {
+    pub fn resolve(&self, host: String) -> Option<String> {
         if self.host_is_ip(&host) {
-            return Some(host.to_string());
+            return Some(host);
         }
 
-        if let Some(cached_host) = self.cached_hosts.lock().unwrap().get(&host) {
+        if let Some(cached_host) = CACHED_HOSTS.lock().unwrap().get(&host) {
             return Some(cached_host.to_string());
         }
 
         if let Ok(response) = DNS_RESOLVER.lookup_ip(&host) {
             if let Some(ip) = response.iter().next() {
-                self.cached_hosts
-                    .lock()
-                    .unwrap()
-                    .insert(host.to_string(), ip.to_string());
+                CACHED_HOSTS.lock().unwrap().insert(host, ip.to_string());
                 return Some(ip.to_string());
             }
         }

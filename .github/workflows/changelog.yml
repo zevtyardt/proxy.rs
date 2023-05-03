@@ -9,10 +9,10 @@ jobs:
     - uses: actions/checkout@v2
       with:
         fetch-depth: 0
-    - uses: BobAnkh/auto-generate-changelog@v1
+    - uses: BobAnkh/auto-generate-changelog@v1.2.4
       with:
-        REPO_NAME: '<YourUserName>/<YourRepoName>'
+        REPO_NAME: 'zevtyardt/rust-proxybroker'
         ACCESS_TOKEN: ${{secrets.TOKEN}}
         PATH: 'CHANGELOG.md'
         COMMIT_MESSAGE: 'docs(CHANGELOG): update release notes'
-        TYPE: 'feat:Feature,fix:Bug Fixes,docs:Documentation,refactor:Refactor,perf:Performance Improvements,test:Testing'
+        TYPE: 'feat:Feature,chore:Code maintenance,fix:Bug Fixes,docs:Documentation,refactor:Refactor,perf:Performance Improvements,test:Testing'

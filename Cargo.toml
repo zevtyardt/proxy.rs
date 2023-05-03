@@ -6,12 +6,13 @@ edition = "2021"
 [dependencies]
 async_once = "0.2.6"
 directories = "5.0.1"
+futures = "0.3.28"
 futures-util = "0.3.28"
 indicatif = { version = "0.17.3", features = ["rayon"] }
 lazy_static = "1.4.0"
 maxminddb = "0.23.0"
 md5 = "0.7.0"
 reqwest = { version = "0.11.17", features = ["stream"] }
-tokio = { version = "1.28.0", features = ["rt-multi-thread", "macros"] }
+tokio = { version = "1.28.0", features = ["rt-multi-thread"] }
 trust-dns-resolver = "0.22.0"
 url = "2.3.1"

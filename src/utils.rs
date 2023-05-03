@@ -22,7 +22,7 @@ async fn download_geolite_db() {
     let bar = ProgressBar::new(0);
     bar.set_style(
         ProgressStyle::with_template(
-            "Downloading GeoLite2-City.mmdb => {percent}% {bytes}/{total_bytes} ({bytes_per_sec}, {eta})",
+            "Info: downloading GeoLite2-City.mmdb => {percent}% {bytes}/{total_bytes} ({bytes_per_sec}, {eta})",
         )
         .unwrap(),
     );
@@ -91,6 +91,10 @@ pub async fn open_geolite_db() -> Option<Reader<Vec<u8>>> {
                     let expected_checksum = response.text().await.unwrap().trim().to_string();
                     let checksum = calculate_checksum(&db).await;
                     redownload = !expected_checksum.eq(&checksum);
+
+                    if redownload {
+                        println!("Warn: database checksum is different. Re-downloading..")
+                    }
                 }
             }
 
@@ -107,12 +111,12 @@ pub async fn open_geolite_db() -> Option<Reader<Vec<u8>>> {
                 }
 
                 fs::rename(&local_db, &db).unwrap();
-                fs::remove_dir(local_db.parent().unwrap()).unwrap();
+                fs::remove_dir(local_db.parent().unwrap()).ok();
             }
 
             match Reader::open_readfile(&db) {
                 Ok(database) => return Some(database),
-                Err(e) => eprintln!("Error {} retrying..", e),
+                Err(e) => eprintln!("Err: {} retrying..", e),
             }
         }
     }

@@ -10,8 +10,10 @@ futures = "0.3.28"
 futures-util = "0.3.28"
 indicatif = { version = "0.17.3", features = ["rayon"] }
 lazy_static = "1.4.0"
+log = "0.4.17"
 maxminddb = "0.23.0"
 md5 = "0.7.0"
+pretty_env_logger = "0.4.0"
 reqwest = { version = "0.11.17", features = ["stream"] }
 tokio = { version = "1.28.0", features = ["rt-multi-thread"] }
 trust-dns-resolver = "0.22.0"

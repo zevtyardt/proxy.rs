@@ -20,6 +20,8 @@ running 6 tests
 - [x] queue
 - [ ] providers/
 - [ ] negotiator.rs
+- [ ] server.rs
+- [ ] api.rs
 
 # Note
 this project is currently under development

@@ -127,27 +127,39 @@ impl Resolver {
         }
 
         if let Some(cached_host) = CACHED_HOSTS.lock().unwrap().get(&host) {
+            log::debug!("host {} is already cached, returning", host);
             return Some(cached_host.to_string());
         }
 
-        if let Ok(response) = DNS_RESOLVER.lookup_ip(&host) {
-            if let Some(ip) = response.iter().next() {
-                CACHED_HOSTS.lock().unwrap().insert(host, ip.to_string());
-                return Some(ip.to_string());
+        match DNS_RESOLVER.lookup_ip(&host) {
+            Ok(response) => {
+                if let Some(ip) = response.iter().next() {
+                    log::info!("resolving host {}: {}", host, ip);
+                    CACHED_HOSTS.lock().unwrap().insert(host, ip.to_string());
+                    return Some(ip.to_string());
+                } else {
+                    log::error!("host ({}) is empty", host);
+                }
             }
+            Err(e) => log::error!("failed to resolve: {}, {}", host, e),
         }
         None
     }
 
     pub async fn get_real_ext_ip(&self) -> Option<String> {
         for ext_ip_host in &self.ext_ip_hosts {
-            if let Ok(response) = reqwest::get(ext_ip_host.to_string()).await {
-                if let Ok(body) = response.text().await {
-                    let ip = body.trim();
-                    if self.host_is_ip(ip) {
-                        return Some(ip.to_string());
+            match reqwest::get(ext_ip_host).await {
+                Ok(response) => match response.text().await {
+                    Ok(body) => {
+                        let ip = body.trim();
+                        if self.host_is_ip(ip) {
+                            log::info!("ext ip ({}) retrieved using host: {}", ip, ext_ip_host);
+                            return Some(ip.to_string());
+                        }
                     }
-                }
+                    Err(e) => log::error!("{}", e),
+                },
+                Err(e) => log::error!("{}", e),
             }
         }
         None

@@ -51,7 +51,8 @@ impl Judge {
             self.ip_address = ip_address;
 
             let client = Client::builder()
-                .timeout(Duration::from_secs(5))
+                .timeout(Duration::from_secs(8))
+                .danger_accept_invalid_certs(true)
                 .build()
                 .unwrap();
             let request = client.get(self.url.clone()).send().await;
@@ -60,7 +61,8 @@ impl Judge {
                     let status = response.status();
                     if status.is_success() {
                         if let Ok(page) = response.text().await {
-                            self.is_working = page.to_lowercase().contains(real_ext_ip);
+                            self.is_working =
+                                page.to_lowercase().contains(&real_ext_ip.to_lowercase());
 
                             self.marks
                                 .insert("via".to_string(), page.matches("via").count());
@@ -69,14 +71,14 @@ impl Judge {
                         }
                     }
                 }
-                Err(e) => eprintln!("Err: {}", e),
+                Err(e) => log::error!("{}", e),
             }
         }
 
         if self.is_working {
-            println!("Info: {} is working", self);
+            log::info!("{} is working", self);
         } else {
-            println!("Info: {} is not working", self)
+            log::error!("{} is not working", self)
         }
         self.is_working
     }
@@ -94,15 +96,17 @@ pub async fn get_judges() -> Vec<Judge> {
     let resolver = Resolver::new();
     let real_ext_ip = resolver.get_real_ext_ip().await.unwrap();
     for url_judge in [
+        "http://httpheader.net/azenv.php",
         "http://httpbin.org/get?show_env",
         "https://httpbin.org/get?show_env",
         "smtp://smtp.gmail.com",
         "smtp://aspmx.l.google.com",
         "http://azenv.net/",
         "https://www.proxy-listen.de/azenv.php",
-        "http://www.proxyfire.net/fastenv",
-        "http://proxyjudge.us/azenv.php",
-        "http://ip.spys.ru/",
+        "https://httpheader.net/azenv.php",
+        "http://mojeip.net.pl/asdfa/azenv.php",
+        "http://proxyjudge.us",
+        "http://pascal.hoez.free.fr/azenv.php",
         "http://www.proxy-listen.de/azenv.php",
     ] {
         let mut judge = Judge::new(url_judge);

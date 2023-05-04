@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Chore
 
+- move the test function to its own file ([c214be5](https://github.com/zevtyardt/rust-proxybroker/commit/c214be5601e1fe79279377201e339097322e5061) by zevtyardt).
 - delete changelog.md ([a6bb110](https://github.com/zevtyardt/rust-proxybroker/commit/a6bb1100079d8b818b65334d49777a27dd0fea76) by zevtyardt).
 - delete workflows ([25a6161](https://github.com/zevtyardt/rust-proxybroker/commit/25a616103e250d9d261cc8a44e7a889a27d3fe38) by zevtyardt).
 - update changelog.yml ([e09aa76](https://github.com/zevtyardt/rust-proxybroker/commit/e09aa7671bc759ac78631b5768fdcc9556fdabc6) by zevtyardt).
@@ -28,12 +29,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Features
 
+- added logging for better output ([721b4e8](https://github.com/zevtyardt/rust-proxybroker/commit/721b4e8e283ab95bc9118d9ad779f48b5154d4e3) by zevtyardt).
+- added some dependencies for logging purposes ([a582e0c](https://github.com/zevtyardt/rust-proxybroker/commit/a582e0c3004eb55b3fc3f8a0dfed53980ed92627) by zevtyardt).
 - added a simple queue implementation ([df390a3](https://github.com/zevtyardt/rust-proxybroker/commit/df390a333894eb3e0f5b0282e5deb1d7db19e3ae) by zevtyardt).
 - add changelog ([8da12b5](https://github.com/zevtyardt/rust-proxybroker/commit/8da12b5086914e05c724ced50cc11c86184c4181) by zevtyardt).
 - add github actions to auto generate changelog ([8d1c6db](https://github.com/zevtyardt/rust-proxybroker/commit/8d1c6dbb901bc8a0fe80edc47fae6ad9eb36af9d) by zevtyardt).
 
 ### Docs
 
+- added 2 new items to todo section ([3a7ab99](https://github.com/zevtyardt/rust-proxybroker/commit/3a7ab9911a5ecdd95074f100ad1d60cd5938f0b4) by zevtyardt).
+- update changelog.md ([2dc2a34](https://github.com/zevtyardt/rust-proxybroker/commit/2dc2a3421dddf29504ff84334e0dbb13bed595ff) by zevtyardt).
 - added current test result and queue ([4d8e094](https://github.com/zevtyardt/rust-proxybroker/commit/4d8e094d07364ce79195372dc76b5c1649e86817) by zevtyardt).
 - update release notes ([076c004](https://github.com/zevtyardt/rust-proxybroker/commit/076c004ec4a2464ba6f9499e625680ff301f1965) by zevtyardt).
 

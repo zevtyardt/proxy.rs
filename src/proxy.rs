@@ -1,9 +1,12 @@
-use crate::resolver::Resolver;
+use std::net::IpAddr;
+
+use crate::resolver::{GeoData, Resolver};
 
 #[derive(Debug, Clone)]
 pub struct Proxy {
     pub host: String,
     pub port: u16,
+    pub geo: GeoData,
 }
 
 impl Proxy {
@@ -12,13 +15,23 @@ impl Proxy {
         if !resolver.host_is_ip(&host) {
             host = resolver.resolve(host).await.unwrap();
         }
-
-        Proxy { host, port }
+        let geo = resolver.get_ip_info(host.parse::<IpAddr>().unwrap()).await;
+        Proxy { host, port, geo }
     }
 }
 
 impl std::fmt::Display for Proxy {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "<Proxy {}:{}>", self.host, self.port)
+    }
+}
+
+impl PartialEq for Proxy {
+    fn eq(&self, other: &Self) -> bool {
+        self.host == other.host && self.port == other.port
+    }
+
+    fn ne(&self, other: &Self) -> bool {
+        !self.eq(other)
     }
 }

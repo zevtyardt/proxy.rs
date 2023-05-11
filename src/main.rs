@@ -5,7 +5,14 @@
 use futures_util::future::join_all;
 use lazy_static::lazy_static;
 
-use crate::providers::freeproxylist::FreeProxyListNetProvider;
+use crate::providers::{
+    freeproxylist::FreeProxyListNetProvider,
+    proxyscrape::{
+        proxyscrape_http::ProxyscrapeComHttpProvider,
+        proxyscrape_socks4::ProxyscrapeComSocks4Provider,
+        proxyscrape_socks5::ProxyscrapeComSocks5Provider,
+    },
+};
 //mod api;
 mod judge;
 mod providers;
@@ -28,7 +35,16 @@ fn main() {
         let freeproxylist = FreeProxyListNetProvider::default();
         let mut tasks = vec![];
 
-        for _ in 0..3 {
+        tasks.push(tokio::task::spawn(async {
+            let mut proxyscrapehttp = ProxyscrapeComHttpProvider::default();
+            proxyscrapehttp.get_proxies().await;
+            let mut proxyscrapesocks4 = ProxyscrapeComSocks4Provider::default();
+            proxyscrapesocks4.get_proxies().await;
+            let mut proxyscrapesocks5 = ProxyscrapeComSocks5Provider::default();
+            proxyscrapesocks5.get_proxies().await;
+        }));
+
+        for _ in 0..2 {
             let mut freeproxylist_c = freeproxylist.clone();
             tasks.push(tokio::task::spawn(async move {
                 freeproxylist_c.get_proxies().await;
@@ -36,7 +52,6 @@ fn main() {
         }
 
         join_all(tasks).await;
-
         log::info!(
             "the number of proxies should be 300: {}",
             freeproxylist.base.proxies.qsize(),
@@ -50,6 +65,7 @@ fn main() {
             }
             dupe.push(prox)
         }
+
         /*
         let resolver = Resolver::new();
 

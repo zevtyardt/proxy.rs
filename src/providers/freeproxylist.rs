@@ -1,8 +1,7 @@
 use super::base_provider::BaseProvider;
-use crate::{proxy::Proxy, utils::vec_of_strings};
-use regex::Regex;
+use crate::utils::vec_of_strings;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FreeProxyListNetProvider {
     pub base: BaseProvider,
     pub url: String,

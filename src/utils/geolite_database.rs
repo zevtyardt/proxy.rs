@@ -23,7 +23,7 @@ async fn download_geolite_db() {
     let bar = ProgressBar::new(0);
     bar.set_style(
         ProgressStyle::with_template(
-            "Info: downloading GeoLite2-City.mmdb => {percent}% {bytes}/{total_bytes} ({bytes_per_sec}, {eta})",
+            " INFO  downloading GeoLite2-City.mmdb => {percent}% {bytes}/{total_bytes} ({bytes_per_sec}, {eta})",
         )
         .unwrap(),
     );
@@ -75,7 +75,9 @@ async fn calculate_checksum(file_path: &Path) -> String {
 }
 
 pub async fn open_geolite_db() -> Option<Reader<Vec<u8>>> {
-    if let Some(project_dir) = ProjectDirs::from_path("rust_proxybroker".into()) {
+    if let Some(project_dir) =
+        ProjectDirs::from_path(option_env!("CARGO_PKG_NAME").unwrap_or("proxy-rs").into())
+    {
         let data_dir = project_dir.data_dir().to_path_buf();
         loop {
             let db = data_dir.join("data").join(GEOLITEDB);
@@ -94,7 +96,7 @@ pub async fn open_geolite_db() -> Option<Reader<Vec<u8>>> {
                     redownload = !expected_checksum.eq(&checksum);
 
                     if redownload {
-                        println!("Warn: database checksum is different. Re-downloading..")
+                        log::warn!("database checksum is different. Re-downloading..")
                     }
                 }
             }
@@ -117,7 +119,7 @@ pub async fn open_geolite_db() -> Option<Reader<Vec<u8>>> {
 
             match Reader::open_readfile(&db) {
                 Ok(database) => return Some(database),
-                Err(e) => eprintln!("Err: {} retrying..", e),
+                Err(e) => log::error!("{} retrying..", e),
             }
         }
     }

@@ -9,10 +9,11 @@ use lazy_static::lazy_static;
 use crate::{
     //api::ProxyRs,
     providers::freeproxylist::FreeProxyListNetProvider,
+    proxy::Proxy,
+    //utils::queue::FifoQueue,
     //proxy::Proxy,
     resolver::Resolver,
     utils::{http::random_useragent, CustomFuture},
-    //utils::queue::FifoQueue,
 };
 mod api;
 mod judge;
@@ -29,14 +30,14 @@ lazy_static! {
 }
 
 fn main() {
-    std::env::set_var("RUST_LOG", "proxyrs=debug");
+    std::env::set_var("RUST_LOG", "proxy_rs=debug");
     pretty_env_logger::init();
 
     RUNTIME.block_on(async {
+        /*
         let resolver = Resolver::new();
 
         resolver.resolve("yahoo.com".to_string()).await.unwrap();
-        /*
         let ext_ip = resolver.get_real_ext_ip().await.unwrap();
         let my_ip: IpAddr = ext_ip.parse().unwrap();
         resolver.get_ip_info(my_ip).await;
@@ -91,7 +92,12 @@ fn main() {
         let freeproxylist = FreeProxyListNetProvider::default();
         let proxies = freeproxylist.get_proxies().await;
 
-        log::info!("{:?}", proxies)
+        let mut found = vec![];
+        for (ip, port, _) in &proxies {
+            found.push(Proxy::new(ip.to_string(), *port).await)
+        }
+        log::info!("found {} proxies", proxies.len());
+        println!("{:#?}", found)
     })
 }
 

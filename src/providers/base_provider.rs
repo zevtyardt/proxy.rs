@@ -1,12 +1,13 @@
+use futures_util::future::join_all;
 use regex::Regex;
 use reqwest::{Client, RequestBuilder};
 
 use crate::{
     proxy::Proxy,
-    utils::{http::random_useragent, queue::FifoQueue, run_parallel, CustomFuture},
+    utils::{http::random_useragent, queue::FifoQueue},
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BaseProvider {
     pub proxies: FifoQueue<Proxy>,
     pub proto: Vec<String>,
@@ -29,9 +30,9 @@ impl BaseProvider {
     }
 
     pub async fn get_all_html(&self, tasks: Vec<RequestBuilder>) -> Vec<String> {
-        let mut mapped_tasks: Vec<CustomFuture<String>> = vec![];
+        let mut mapped_tasks = vec![];
         for task in tasks {
-            let fut = Box::pin(async {
+            let fut = tokio::task::spawn(async {
                 if let Ok(response) = task.send().await {
                     if let Ok(body) = response.text().await {
                         return body;
@@ -42,8 +43,11 @@ impl BaseProvider {
             mapped_tasks.push(fut);
         }
 
-        run_parallel::<String>(mapped_tasks, 5) // TODO: configurable concurrent
+        join_all(mapped_tasks)
             .await
+            .into_iter()
+            .map(|f| f.unwrap())
+            .collect()
     }
 
     pub fn find_proxies(&self, pattern: String, html: &str) -> Vec<(String, u16, Vec<String>)> {

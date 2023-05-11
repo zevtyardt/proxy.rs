@@ -45,3 +45,9 @@ impl<T> FifoQueue<T> {
         data.is_empty()
     }
 }
+
+impl<T> std::fmt::Display for FifoQueue<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "<FifoQueue {} items>", self.qsize())
+    }
+}

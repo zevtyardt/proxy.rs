@@ -8,7 +8,7 @@ use tokio::task::JoinHandle;
 
 use crate::utils::geolite_database::open_geolite_db;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct GeoData {
     pub iso_code: String,
     pub name: String,
@@ -17,7 +17,7 @@ pub struct GeoData {
     pub city_name: String,
 }
 
-impl GeoData {
+impl Default for GeoData {
     fn default() -> Self {
         let unknown = String::from("unknown");
         GeoData {

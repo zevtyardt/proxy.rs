@@ -15,6 +15,8 @@ pub struct Judge {
     pub ip_address: Option<String>,
     pub is_working: bool,
     pub marks: HashMap<String, usize>,
+    pub timeout: u16,
+    pub verify_ssl: bool,
 }
 
 impl Judge {
@@ -31,7 +33,13 @@ impl Judge {
             ip_address: None,
             is_working: false,
             marks,
+            timeout: 8,
+            verify_ssl: false,
         }
+    }
+
+    pub fn set_verify_ssl(&mut self, value: bool) {
+        self.verify_ssl = value
     }
 
     pub async fn check_host(&mut self, real_ext_ip: &String) -> bool {
@@ -40,19 +48,17 @@ impl Judge {
         } else {
             let resolver = Resolver::new();
             let c_host = self.url.host_str().unwrap().to_string();
-            let ip_address = tokio::task::spawn_blocking(move || resolver.resolve(c_host))
-                .await
-                .unwrap();
+            let ip_address = resolver.resolve(c_host).await;
 
-            if ip_address.is_none() {
+            if !ip_address.is_ok() {
                 return false;
             }
 
-            self.ip_address = ip_address;
+            self.ip_address = Some(ip_address.unwrap());
 
             let client = Client::builder()
-                .timeout(Duration::from_secs(8))
-                .danger_accept_invalid_certs(true)
+                .timeout(Duration::from_secs(self.timeout as u64))
+                .danger_accept_invalid_certs(!self.verify_ssl)
                 .build()
                 .unwrap();
             let request = client.get(self.url.clone()).send().await;
@@ -91,7 +97,7 @@ impl std::fmt::Display for Judge {
     }
 }
 
-pub async fn get_judges() -> Vec<Judge> {
+pub async fn get_judges(verify_ssl: bool) -> Vec<Judge> {
     let mut fut = vec![];
     let resolver = Resolver::new();
     let real_ext_ip = resolver.get_real_ext_ip().await.unwrap();
@@ -111,14 +117,16 @@ pub async fn get_judges() -> Vec<Judge> {
     ] {
         let mut judge = Judge::new(url_judge);
         let c_real_ext_ip = real_ext_ip.clone();
+        let c_verify_ssl = verify_ssl.clone();
         fut.push(async move {
+            judge.set_verify_ssl(c_verify_ssl);
             judge.check_host(&c_real_ext_ip).await;
             judge
         })
     }
 
     stream::iter(fut)
-        .buffer_unordered(10)
+        .buffer_unordered(50)
         .collect::<Vec<Judge>>()
         .await
 }

@@ -3,28 +3,24 @@ use std::{
     sync::{Arc, Condvar, Mutex},
 };
 
-use lazy_static::lazy_static;
-
-lazy_static! {
-    static ref CV: Condvar = Condvar::new();
-}
-
 #[derive(Debug, Clone)]
 pub struct FifoQueue<T> {
-    data: Arc<Mutex<VecDeque<T>>>,
+    pub data: Arc<Mutex<VecDeque<T>>>,
+    cv: Arc<Condvar>,
 }
 
 impl<T: std::cmp::PartialEq> FifoQueue<T> {
     pub fn new() -> Self {
         Self {
             data: Arc::new(Mutex::new(VecDeque::new())),
+            cv: Arc::new(Condvar::new()),
         }
     }
 
     pub fn push(&self, value: T) {
         let mut data = self.data.lock().unwrap();
         data.push_back(value);
-        CV.notify_one();
+        self.cv.notify_one();
     }
 
     pub fn push_unique(&self, value: T) -> bool {
@@ -38,7 +34,7 @@ impl<T: std::cmp::PartialEq> FifoQueue<T> {
     pub fn get(&self) -> T {
         let mut data = self.data.lock().unwrap();
         while data.is_empty() {
-            data = CV.wait(data).unwrap();
+            data = self.cv.wait(data).unwrap();
         }
         data.pop_front().unwrap()
     }

@@ -14,7 +14,7 @@ pub struct FifoQueue<T> {
     data: Arc<Mutex<VecDeque<T>>>,
 }
 
-impl<T> FifoQueue<T> {
+impl<T: std::cmp::PartialEq> FifoQueue<T> {
     pub fn new() -> Self {
         Self {
             data: Arc::new(Mutex::new(VecDeque::new())),
@@ -44,9 +44,14 @@ impl<T> FifoQueue<T> {
         let data = self.data.lock().unwrap();
         data.is_empty()
     }
+
+    pub fn is_unique(&self, value: T) -> bool {
+        let data = self.data.lock().unwrap();
+        !data.contains(&value)
+    }
 }
 
-impl<T> std::fmt::Display for FifoQueue<T> {
+impl<T: std::cmp::PartialEq> std::fmt::Display for FifoQueue<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "<FifoQueue {} items>", self.qsize())
     }

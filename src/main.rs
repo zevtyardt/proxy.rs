@@ -15,7 +15,7 @@ use crate::{
     resolver::Resolver,
     utils::{http::random_useragent, CustomFuture},
 };
-mod api;
+//mod api;
 mod judge;
 mod providers;
 mod proxy;
@@ -34,6 +34,14 @@ fn main() {
     pretty_env_logger::init();
 
     RUNTIME.block_on(async {
+        let mut freeproxylist = FreeProxyListNetProvider::default();
+
+        freeproxylist.get_proxies().await;
+
+        while let Some(proxy) = freeproxylist.base.proxies.get_nowait() {
+            println!("{}", proxy)
+        }
+
         /*
         let resolver = Resolver::new();
 
@@ -88,16 +96,6 @@ fn main() {
 
         utils::run_parallel::<()>(tasks, 2).await;
         */
-
-        let freeproxylist = FreeProxyListNetProvider::default();
-        let proxies = freeproxylist.get_proxies().await;
-
-        let mut found = vec![];
-        for (ip, port, _) in &proxies {
-            found.push(Proxy::new(ip.to_string(), *port).await)
-        }
-        log::info!("found {} proxies", proxies.len());
-        println!("{:#?}", found)
     })
 }
 

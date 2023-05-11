@@ -15,8 +15,9 @@ use tokio::{
 
 const GEOLITEDB: &str = "GeoLite2-City.mmdb";
 const GEOLITEDB_DOWNLOAD_URL: &str =
-    "https://raw.githubusercontent.com/zevtyardt/rust-proxybroker/main/data/GeoLite2-City.mmdb";
-const GEOLITEDB_CHECKSUM_URL: &str = "https://raw.githubusercontent.com/zevtyardt/rust-proxybroker/main/data/Geolite2-City.mmdb.checksum";
+    "https://raw.githubusercontent.com/zevtyardt/proxy.rs/main/data/GeoLite2-City.mmdb";
+const GEOLITEDB_CHECKSUM_URL: &str =
+    "https://raw.githubusercontent.com/zevtyardt/proxy.rs/main/data/Geolite2-City.mmdb.checksum";
 
 async fn download_geolite_db() {
     let bar = ProgressBar::new(0);

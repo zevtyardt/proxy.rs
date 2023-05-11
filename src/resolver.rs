@@ -4,6 +4,7 @@ use async_once::AsyncOnce;
 use lazy_static::lazy_static;
 use maxminddb::{geoip2::City, Reader};
 use std::sync::{Arc, Mutex};
+use tokio::task::JoinHandle;
 
 use crate::utils::geolite_database::open_geolite_db;
 
@@ -39,29 +40,26 @@ lazy_static! {
         AsyncOnce::new(async { open_geolite_db().await.unwrap() });
     pub static ref CACHED_HOSTS: Arc<Mutex<HashMap<String, String>>> =
         Arc::new(Mutex::new(HashMap::new()));
+    pub static ref EXT_IP_HOSTS: Vec<String> = vec![
+        "https://wtfismyip.com/text",
+        "http://api.ipify.org/",
+        "http://ipinfo.io/ip",
+        "http://ipv4.icanhazip.com/",
+        "http://myexternalip.com/raw",
+        "http://ipinfo.io/ip",
+        "http://ifconfig.io/ip",
+    ]
+    .iter()
+    .map(|x| x.to_string())
+    .collect();
 }
 
 #[derive(Debug, Clone)]
-pub struct Resolver {
-    ext_ip_hosts: Vec<String>,
-}
+pub struct Resolver;
 
 impl Resolver {
     pub fn new() -> Self {
-        let ext_ip_hosts: Vec<String> = vec![
-            "https://wtfismyip.com/text",
-            "http://api.ipify.org/",
-            "http://ipinfo.io/ip",
-            "http://ipv4.icanhazip.com/",
-            "http://myexternalip.com/raw",
-            "http://ipinfo.io/ip",
-            "http://ifconfig.io/ip",
-        ]
-        .iter()
-        .map(|x| x.to_string())
-        .collect();
-
-        Resolver { ext_ip_hosts }
+        Resolver {}
     }
 
     pub fn host_is_ip(&self, ipv4: &str) -> bool {
@@ -121,33 +119,30 @@ impl Resolver {
         geodata
     }
 
-    pub fn resolve(&self, host: String) -> Option<String> {
-        if self.host_is_ip(&host) {
-            return Some(host);
-        }
-
-        if let Some(cached_host) = CACHED_HOSTS.lock().unwrap().get(&host) {
-            log::debug!("host {} is already cached, returning", host);
-            return Some(cached_host.to_string());
-        }
-
-        match DNS_RESOLVER.lookup_ip(&host) {
-            Ok(response) => {
-                if let Some(ip) = response.iter().next() {
-                    log::info!("resolving host {}: {}", host, ip);
-                    CACHED_HOSTS.lock().unwrap().insert(host, ip.to_string());
-                    return Some(ip.to_string());
-                } else {
-                    log::error!("host ({}) is empty", host);
-                }
+    pub fn resolve(&self, host: String) -> JoinHandle<String> {
+        tokio::task::spawn_blocking(|| {
+            if let Some(cached_host) = CACHED_HOSTS.lock().unwrap().get(&host) {
+                log::debug!("host {} is already cached, returning", host);
+                return cached_host.to_string();
             }
-            Err(e) => log::error!("failed to resolve: {}, {}", host, e),
-        }
-        None
+            match DNS_RESOLVER.lookup_ip(&host) {
+                Ok(response) => {
+                    if let Some(ip) = response.iter().next() {
+                        log::info!("resolving host {}: {}", host, ip);
+                        CACHED_HOSTS.lock().unwrap().insert(host, ip.to_string());
+                        return ip.to_string();
+                    } else {
+                        log::error!("host ({}) is empty", host);
+                    }
+                }
+                Err(e) => log::error!("failed to resolve: {}, {}", host, e),
+            }
+            host
+        })
     }
 
     pub async fn get_real_ext_ip(&self) -> Option<String> {
-        for ext_ip_host in &self.ext_ip_hosts {
+        for ext_ip_host in EXT_IP_HOSTS.iter() {
             match reqwest::get(ext_ip_host).await {
                 Ok(response) => match response.text().await {
                     Ok(body) => {

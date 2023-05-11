@@ -2,19 +2,10 @@
 #![allow(unused_variables)]
 #![allow(unused_imports)]
 
-use futures_util::{stream, StreamExt};
+use futures_util::future::join_all;
 use lazy_static::lazy_static;
-//use std::net::IpAddr;
 
-use crate::{
-    //api::ProxyRs,
-    providers::freeproxylist::FreeProxyListNetProvider,
-    proxy::Proxy,
-    //utils::queue::FifoQueue,
-    //proxy::Proxy,
-    resolver::Resolver,
-    utils::{http::random_useragent, CustomFuture},
-};
+use crate::providers::freeproxylist::FreeProxyListNetProvider;
 //mod api;
 mod judge;
 mod providers;
@@ -34,14 +25,31 @@ fn main() {
     pretty_env_logger::init();
 
     RUNTIME.block_on(async {
-        let mut freeproxylist = FreeProxyListNetProvider::default();
+        let freeproxylist = FreeProxyListNetProvider::default();
+        let mut tasks = vec![];
 
-        freeproxylist.get_proxies().await;
-
-        while let Some(proxy) = freeproxylist.base.proxies.get_nowait() {
-            println!("{}", proxy)
+        for _ in 0..3 {
+            let mut freeproxylist_c = freeproxylist.clone();
+            tasks.push(tokio::task::spawn(async move {
+                freeproxylist_c.get_proxies().await;
+            }));
         }
 
+        join_all(tasks).await;
+
+        log::info!(
+            "the number of proxies should be 300: {}",
+            freeproxylist.base.proxies.qsize(),
+        );
+
+        let mut dupe = vec![];
+        let data = freeproxylist.base.proxies.data.lock().unwrap();
+        for prox in data.clone().into_iter() {
+            if dupe.contains(&prox) {
+                log::info!("duplicate {}", prox);
+            }
+            dupe.push(prox)
+        }
         /*
         let resolver = Resolver::new();
 
@@ -49,7 +57,6 @@ fn main() {
         let ext_ip = resolver.get_real_ext_ip().await.unwrap();
         let my_ip: IpAddr = ext_ip.parse().unwrap();
         resolver.get_ip_info(my_ip).await;
-
         let queue = FifoQueue::new();
 
         let proxy = Proxy::new("127.0.0.1".to_string(), 8080).await;
@@ -98,6 +105,3 @@ fn main() {
         */
     })
 }
-
-#[cfg(test)]
-mod test;

@@ -6,17 +6,23 @@ use crate::resolver::{GeoData, Resolver};
 pub struct Proxy {
     pub host: String,
     pub port: u16,
+    pub proto: Vec<String>,
     pub geo: GeoData,
 }
 
 impl Proxy {
-    pub async fn new(mut host: String, port: u16) -> Self {
+    pub async fn new(mut host: String, port: u16, proto: Vec<String>) -> Self {
         let resolver = Resolver::new();
         if !resolver.host_is_ip(&host) {
             host = resolver.resolve(host).await.unwrap();
         }
         let geo = resolver.get_ip_info(host.parse::<IpAddr>().unwrap()).await;
-        Proxy { host, port, geo }
+        Proxy {
+            host,
+            port,
+            geo,
+            proto,
+        }
     }
 }
 

@@ -77,14 +77,14 @@ impl Judge {
                         }
                     }
                 }
-                Err(e) => log::error!("{}", e),
+                Err(e) => log::debug!("{}", e),
             }
         }
 
         if self.is_working {
-            log::info!("{} is working", self);
+            log::debug!("{} is working", self);
         } else {
-            log::error!("{} is not working", self)
+            log::debug!("{} is not working", self)
         }
         self.is_working
     }

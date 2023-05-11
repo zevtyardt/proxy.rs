@@ -96,7 +96,7 @@ pub async fn open_geolite_db() -> Option<Reader<Vec<u8>>> {
                     redownload = !expected_checksum.eq(&checksum);
 
                     if redownload {
-                        log::warn!("database checksum is different. Re-downloading..")
+                        log::debug!("database checksum is different. Re-downloading..")
                     }
                 }
             }
@@ -119,7 +119,7 @@ pub async fn open_geolite_db() -> Option<Reader<Vec<u8>>> {
 
             match Reader::open_readfile(&db) {
                 Ok(database) => return Some(database),
-                Err(e) => log::error!("{} retrying..", e),
+                Err(e) => log::debug!("{} retrying..", e),
             }
         }
     }

@@ -1,5 +1,5 @@
 [package]
-name = "rproxy"
+name = "proxyrs"
 version = "0.1.0"
 edition = "2021"
 
@@ -14,6 +14,8 @@ log = "0.4.17"
 maxminddb = "0.23.0"
 md5 = "0.7.0"
 pretty_env_logger = "0.4.0"
+rand = "0.8.5"
+regex = "1.8.1"
 reqwest = { version = "0.11.17", features = ["stream"] }
 tokio = { version = "1.28.0", features = ["rt-multi-thread"] }
 trust-dns-resolver = "0.22.0"

@@ -128,14 +128,14 @@ impl Resolver {
             match DNS_RESOLVER.lookup_ip(&host) {
                 Ok(response) => {
                     if let Some(ip) = response.iter().next() {
-                        log::info!("resolving host {}: {}", host, ip);
+                        log::debug!("resolving host {}: {}", host, ip);
                         CACHED_HOSTS.lock().unwrap().insert(host, ip.to_string());
                         return ip.to_string();
                     } else {
-                        log::error!("host ({}) is empty", host);
+                        log::debug!("host ({}) is empty", host);
                     }
                 }
-                Err(e) => log::error!("failed to resolve: {}, {}", host, e),
+                Err(e) => log::debug!("failed to resolve: {}, {}", host, e),
             }
             host
         })
@@ -148,7 +148,7 @@ impl Resolver {
                     Ok(body) => {
                         let ip = body.trim();
                         if self.host_is_ip(ip) {
-                            log::info!("ext ip ({}) retrieved using host: {}", ip, ext_ip_host);
+                            log::debug!("ext ip ({}) retrieved using host: {}", ip, ext_ip_host);
                             return Some(ip.to_string());
                         }
                     }

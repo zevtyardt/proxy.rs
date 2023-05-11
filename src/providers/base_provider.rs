@@ -7,13 +7,18 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct BaseProvider<'a> {
+pub struct BaseProvider {
     pub proxies: FifoQueue<Proxy>,
-    pub proto: Vec<&'a str>,
+    pub proto: Vec<String>,
+    pub domain: String,
     pub client: Client,
 }
 
-impl BaseProvider<'_> {
+impl BaseProvider {
+    pub fn start(&mut self) {
+        log::debug!("Try to get proxies from {}", self.domain);
+    }
+
     pub async fn get_html(&self, task: RequestBuilder) -> String {
         if let Ok(response) = task.send().await {
             if let Ok(body) = response.text().await {
@@ -41,8 +46,8 @@ impl BaseProvider<'_> {
             .await
     }
 
-    pub fn find_proxies(&self, pattern: &str, html: &str) -> Vec<(String, u16, Vec<&str>)> {
-        let re = Regex::new(pattern).unwrap();
+    pub fn find_proxies(&self, pattern: String, html: &str) -> Vec<(String, u16, Vec<String>)> {
+        let re = Regex::new(&pattern).unwrap();
         let mut proxies = vec![];
         for cap in re.captures_iter(html) {
             let ip = cap.get(1).unwrap().as_str();
@@ -53,11 +58,26 @@ impl BaseProvider<'_> {
                 self.proto.clone(),
             ))
         }
+        log::debug!("{} proxies received from {}", proxies.len(), self.domain);
         proxies
+    }
+
+    pub async fn update_stack(&self, proxies: &Vec<(String, u16, Vec<String>)>) {
+        let mut added = 0;
+        for (ip, port, proto) in proxies {
+            let proxy = Proxy::new(ip.to_string(), *port, proto.to_vec()).await;
+            let is_added = self.proxies.push_unique(proxy);
+
+            if is_added {
+                added += 1;
+            }
+        }
+
+        log::debug!("{} proxies added(received) from {}", added, self.domain)
     }
 }
 
-impl Default for BaseProvider<'_> {
+impl Default for BaseProvider {
     fn default() -> Self {
         BaseProvider {
             proxies: FifoQueue::new(),
@@ -65,6 +85,7 @@ impl Default for BaseProvider<'_> {
                 .user_agent(random_useragent())
                 .build()
                 .unwrap(),
+            domain: String::new(),
             proto: vec![],
         }
     }

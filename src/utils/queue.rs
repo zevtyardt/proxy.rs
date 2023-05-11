@@ -27,12 +27,28 @@ impl<T: std::cmp::PartialEq> FifoQueue<T> {
         CV.notify_one();
     }
 
-    pub fn pop(&self) -> T {
+    pub fn push_unique(&self, value: T) -> bool {
+        if self.is_unique(&value) {
+            self.push(value);
+            return true;
+        }
+        false
+    }
+
+    pub fn get(&self) -> T {
         let mut data = self.data.lock().unwrap();
         while data.is_empty() {
             data = CV.wait(data).unwrap();
         }
         data.pop_front().unwrap()
+    }
+
+    pub fn get_nowait(&self) -> Option<T> {
+        let mut data = self.data.lock().unwrap();
+        if !data.is_empty() {
+            return Some(data.pop_front().unwrap());
+        }
+        None
     }
 
     pub fn qsize(&self) -> usize {
@@ -45,9 +61,9 @@ impl<T: std::cmp::PartialEq> FifoQueue<T> {
         data.is_empty()
     }
 
-    pub fn is_unique(&self, value: T) -> bool {
+    pub fn is_unique(&self, value: &T) -> bool {
         let data = self.data.lock().unwrap();
-        !data.contains(&value)
+        !data.contains(value)
     }
 }
 

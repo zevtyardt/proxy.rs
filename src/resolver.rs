@@ -122,20 +122,20 @@ impl Resolver {
     pub fn resolve(&self, host: String) -> JoinHandle<String> {
         tokio::task::spawn_blocking(|| {
             if let Some(cached_host) = CACHED_HOSTS.lock().unwrap().get(&host) {
-                log::debug!("host {} is already cached, returning", host);
+                log::debug!("Host {} is already cached, returning", host);
                 return cached_host.to_string();
             }
             match DNS_RESOLVER.lookup_ip(&host) {
                 Ok(response) => {
                     if let Some(ip) = response.iter().next() {
-                        log::debug!("resolving host {}: {}", host, ip);
+                        log::debug!("Resolving host {}: {}", host, ip);
                         CACHED_HOSTS.lock().unwrap().insert(host, ip.to_string());
                         return ip.to_string();
                     } else {
-                        log::debug!("host ({}) is empty", host);
+                        log::debug!("Host ({}) is empty", host);
                     }
                 }
-                Err(e) => log::debug!("failed to resolve: {}, {}", host, e),
+                Err(e) => log::debug!("Failed to resolve: {}, {}", host, e),
             }
             host
         })
@@ -148,7 +148,7 @@ impl Resolver {
                     Ok(body) => {
                         let ip = body.trim();
                         if self.host_is_ip(ip) {
-                            log::debug!("ext ip ({}) retrieved using host: {}", ip, ext_ip_host);
+                            log::debug!("Ext ip ({}) retrieved using host: {}", ip, ext_ip_host);
                             return Some(ip.to_string());
                         }
                     }

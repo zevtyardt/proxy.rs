@@ -52,13 +52,10 @@ fn main() {
         }
 
         join_all(tasks).await;
-        log::info!(
-            "the number of proxies should be 300: {}",
-            freeproxylist.base.proxies.qsize(),
-        );
+        log::info!("total proxies scraped: {}", providers::PROXIES.qsize(),);
 
         let mut dupe = vec![];
-        let data = freeproxylist.base.proxies.data.lock().unwrap();
+        let data = providers::PROXIES.data.lock().unwrap();
         for prox in data.clone().into_iter() {
             if dupe.contains(&prox) {
                 log::info!("duplicate {}", prox);

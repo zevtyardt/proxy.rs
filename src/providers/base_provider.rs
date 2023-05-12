@@ -3,13 +3,13 @@ use regex::Regex;
 use reqwest::{Client, RequestBuilder};
 
 use crate::{
+    providers::PROXIES,
     proxy::Proxy,
     utils::{http::random_useragent, queue::FifoQueue},
 };
 
 #[derive(Debug, Clone)]
 pub struct BaseProvider {
-    pub proxies: FifoQueue<Proxy>,
     pub proto: Vec<String>,
     pub domain: String,
     pub client: Client,
@@ -70,7 +70,7 @@ impl BaseProvider {
         let mut added = 0;
         for (ip, port, proto) in proxies {
             let proxy = Proxy::new(ip.to_string(), *port, proto.to_vec()).await;
-            let is_added = self.proxies.push_unique(proxy);
+            let is_added = PROXIES.push_unique(proxy);
 
             if is_added {
                 added += 1;
@@ -84,7 +84,6 @@ impl BaseProvider {
 impl Default for BaseProvider {
     fn default() -> Self {
         BaseProvider {
-            proxies: FifoQueue::new(),
             client: Client::builder()
                 .user_agent(random_useragent())
                 .build()

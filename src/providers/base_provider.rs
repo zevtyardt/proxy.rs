@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use futures_util::future::join_all;
 use regex::Regex;
 use reqwest::{Client, RequestBuilder};
@@ -86,6 +88,7 @@ impl Default for BaseProvider {
         BaseProvider {
             client: Client::builder()
                 .user_agent(random_useragent())
+                .timeout(Duration::from_secs(5)) // todo customable
                 .build()
                 .unwrap(),
             domain: String::new(),

@@ -23,7 +23,7 @@ async fn download_geolite_db() {
     let bar = ProgressBar::new(0);
     bar.set_style(
         ProgressStyle::with_template(
-            " INFO  downloading GeoLite2-City.mmdb => {percent}% {bytes}/{total_bytes} ({bytes_per_sec}, {eta})",
+            " INFO  Downloading GeoLite2-City.mmdb => {percent}% {bytes}/{total_bytes} ({bytes_per_sec}, {eta})",
         )
         .unwrap(),
     );
@@ -96,7 +96,7 @@ pub async fn open_geolite_db() -> Option<Reader<Vec<u8>>> {
                     redownload = !expected_checksum.eq(&checksum);
 
                     if redownload {
-                        log::debug!("database checksum is different. Re-downloading..")
+                        log::debug!("Database checksum is different. Re-downloading..")
                     }
                 }
             }

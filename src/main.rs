@@ -7,6 +7,7 @@ use lazy_static::lazy_static;
 
 use crate::providers::{
     freeproxylist::FreeProxyListNetProvider,
+    ipaddress_com::IpaddressComProvider,
     proxyscrape::{
         proxyscrape_http::ProxyscrapeComHttpProvider,
         proxyscrape_socks4::ProxyscrapeComSocks4Provider,
@@ -51,14 +52,19 @@ fn main() {
             }));
         }
 
+        tasks.push(tokio::task::spawn(async {
+            let mut ipaddress = IpaddressComProvider::default();
+            ipaddress.get_proxies().await;
+        }));
+
         join_all(tasks).await;
-        log::info!("total proxies scraped: {}", providers::PROXIES.qsize(),);
+        log::info!("Total proxies scraped: {}", providers::PROXIES.qsize(),);
 
         let mut dupe = vec![];
         let data = providers::PROXIES.data.lock().unwrap();
         for prox in data.clone().into_iter() {
             if dupe.contains(&prox) {
-                log::info!("duplicate {}", prox);
+                log::info!("Duplicate {}", prox);
             }
             dupe.push(prox)
         }

@@ -1,5 +1,6 @@
 pub mod base_provider;
 pub mod freeproxylist;
+pub mod ipaddress_com;
 pub mod proxyscrape;
 
 use lazy_static::lazy_static;

@@ -50,11 +50,11 @@ impl Judge {
             let c_host = self.url.host_str().unwrap().to_string();
             let ip_address = resolver.resolve(c_host).await;
 
-            if !ip_address.is_ok() {
+            if !resolver.host_is_ip(ip_address.as_str()) {
                 return false;
             }
 
-            self.ip_address = Some(ip_address.unwrap());
+            self.ip_address = Some(ip_address);
 
             let client = Client::builder()
                 .timeout(Duration::from_secs(self.timeout as u64))

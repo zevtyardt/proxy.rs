@@ -4,7 +4,10 @@ use async_once::AsyncOnce;
 use lazy_static::lazy_static;
 use maxminddb::{geoip2::City, Reader};
 use std::sync::{Arc, Mutex};
-use tokio::task::JoinHandle;
+use trust_dns_resolver::{
+    config::{ResolverConfig, ResolverOpts},
+    TokioAsyncResolver,
+};
 
 use crate::utils::geolite_database::open_geolite_db;
 
@@ -31,11 +34,8 @@ impl Default for GeoData {
 }
 
 lazy_static! {
-    pub static ref DNS_RESOLVER: trust_dns_resolver::Resolver = trust_dns_resolver::Resolver::new(
-        trust_dns_resolver::config::ResolverConfig::default(),
-        trust_dns_resolver::config::ResolverOpts::default(),
-    )
-    .unwrap();
+    pub static ref DNS_RESOLVER: TokioAsyncResolver =
+        TokioAsyncResolver::tokio(ResolverConfig::default(), ResolverOpts::default()).unwrap();
     pub static ref GEO_CITY: AsyncOnce<Reader<Vec<u8>>> =
         AsyncOnce::new(async { open_geolite_db().await.unwrap() });
     pub static ref CACHED_HOSTS: Arc<Mutex<HashMap<String, String>>> =
@@ -119,26 +119,24 @@ impl Resolver {
         geodata
     }
 
-    pub fn resolve(&self, host: String) -> JoinHandle<String> {
-        tokio::task::spawn_blocking(|| {
-            if let Some(cached_host) = CACHED_HOSTS.lock().unwrap().get(&host) {
-                log::debug!("Host {} is already cached, returning", host);
-                return cached_host.to_string();
-            }
-            match DNS_RESOLVER.lookup_ip(&host) {
-                Ok(response) => {
-                    if let Some(ip) = response.iter().next() {
-                        log::debug!("Resolving host {}: {}", host, ip);
-                        CACHED_HOSTS.lock().unwrap().insert(host, ip.to_string());
-                        return ip.to_string();
-                    } else {
-                        log::debug!("Host ({}) is empty", host);
-                    }
+    pub async fn resolve(&self, host: String) -> String {
+        if let Some(cached_host) = CACHED_HOSTS.lock().unwrap().get(&host) {
+            log::debug!("Host {} is already cached, returning", host);
+            return cached_host.to_string();
+        }
+        match DNS_RESOLVER.lookup_ip(&host).await {
+            Ok(response) => {
+                if let Some(ip) = response.iter().next() {
+                    log::debug!("Resolving host {}: {}", host, ip);
+                    CACHED_HOSTS.lock().unwrap().insert(host, ip.to_string());
+                    return ip.to_string();
+                } else {
+                    log::debug!("Host ({}) is empty", host);
                 }
-                Err(e) => log::debug!("Failed to resolve: {}, {}", host, e),
             }
-            host
-        })
+            Err(e) => log::debug!("Failed to resolve: {}, {}", host, e),
+        }
+        host
     }
 
     pub async fn get_real_ext_ip(&self) -> Option<String> {

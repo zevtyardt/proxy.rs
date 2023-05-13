@@ -4,17 +4,14 @@ use futures_util::future::join_all;
 use regex::Regex;
 use reqwest::{Client, RequestBuilder};
 
-use crate::{
-    providers::PROXIES,
-    proxy::Proxy,
-    utils::{http::random_useragent, queue::FifoQueue},
-};
+use crate::{providers::PROXIES, proxy::Proxy, utils::http::random_useragent};
 
 #[derive(Debug, Clone)]
 pub struct BaseProvider {
     pub proto: Vec<String>,
     pub domain: String,
     pub client: Client,
+    pub max_retry: i32,
 }
 
 impl BaseProvider {
@@ -23,9 +20,12 @@ impl BaseProvider {
     }
 
     pub async fn get_html(&self, task: RequestBuilder) -> String {
-        if let Ok(response) = task.send().await {
-            if let Ok(body) = response.text().await {
-                return body;
+        for _ in 0..self.max_retry {
+            let task_c = task.try_clone().unwrap();
+            if let Ok(response) = task_c.send().await {
+                if let Ok(body) = response.text().await {
+                    return body;
+                }
             }
         }
         String::new()
@@ -92,6 +92,7 @@ impl Default for BaseProvider {
                 .build()
                 .unwrap(),
             domain: String::new(),
+            max_retry: 3,
             proto: vec![],
         }
     }

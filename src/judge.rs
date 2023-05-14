@@ -6,7 +6,7 @@ use url::Url;
 
 use crate::resolver::Resolver;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Judge {
     url: Url,
 

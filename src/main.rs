@@ -6,6 +6,7 @@ use futures_util::future::join_all;
 use lazy_static::lazy_static;
 
 //mod api;
+mod checker;
 mod judge;
 mod providers;
 mod proxy;
@@ -35,5 +36,9 @@ fn main() {
             }
             dupe.push(prox)
         }
+
+        let mut checker = checker::Checker::default();
+        checker.verify_ssl = true;
+        checker.check_judges().await;
     })
 }

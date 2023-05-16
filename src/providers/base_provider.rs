@@ -71,7 +71,7 @@ impl BaseProvider {
     pub async fn update_stack(&self, proxies: &Vec<(String, u16, Vec<String>)>) {
         let mut added = 0;
         for (ip, port, proto) in proxies {
-            let proxy = Proxy::new(ip.to_string(), *port, proto.to_vec()).await;
+            let proxy = Proxy::create(ip, *port, proto.to_vec()).await;
             let is_added = PROXIES.push_unique(proxy);
 
             if is_added {

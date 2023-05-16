@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use indicatif::HumanDuration;
 use tokio::time;
 
 use crate::{judge::get_judges, utils::vec_of_strings};
@@ -29,11 +28,7 @@ impl Checker {
                 works += 1;
             }
         }
-        log::debug!(
-            "{} judges added, Runtime {}",
-            works,
-            HumanDuration(stime.elapsed())
-        );
+        log::debug!("{} judges added, Runtime {:?}", works, stime.elapsed());
 
         let mut nojudges = vec![];
         let mut disable_protocols = vec![];

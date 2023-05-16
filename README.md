@@ -1,5 +1,8 @@
 # proxy.rs
 
+# Currently working on 
+- implement negotiator for http proxy checker
+
 # Todo
 - Check IPs against DNSBL
 - Proxy checker

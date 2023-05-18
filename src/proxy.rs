@@ -1,4 +1,4 @@
-use std::{net::IpAddr, time::Duration};
+use std::{collections::HashMap, net::IpAddr, time::Duration};
 
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
@@ -18,12 +18,14 @@ pub struct Proxy {
     pub expected_types: Vec<String>,
     pub geo: GeoData,
     pub types: Vec<(String, Option<String>)>,
-    pub logs: Vec<(String, Duration)>,
+    pub logs: Vec<(String, String, Duration)>,
     pub negotiator_proto: String,
     pub timeout: i32,
     pub runtimes: Vec<f64>,
 
     pub stream: Option<TcpStream>,
+    pub request_stat: i32,
+    pub error_stat: HashMap<String, i32>,
 }
 
 impl Proxy {
@@ -34,6 +36,7 @@ impl Proxy {
             host = resolver.resolve(host).await;
         }
         let geo = resolver.get_ip_info(host.parse::<IpAddr>().unwrap()).await;
+
         Proxy {
             host,
             port,
@@ -45,6 +48,8 @@ impl Proxy {
             timeout: 8,
             runtimes: vec![],
             stream: None,
+            request_stat: 0,
+            error_stat: HashMap::new(),
         }
     }
 
@@ -72,8 +77,17 @@ impl Proxy {
             stime.unwrap()
         );
 
-        self.logs.push((msg.to_string(), stime.unwrap()));
+        self.logs.push((
+            self.negotiator_proto.clone(),
+            msg.to_string(),
+            stime.unwrap(),
+        ));
+
+        let runtime_sec = stime.unwrap().as_secs_f64();
+        self.runtimes.push(runtime_sec)
     }
+
+    //    pub fn log_error(&mut self) {}
 
     pub fn negotiator(&self) -> Box<dyn Negotiators> {
         // TODO ADD HTTPS, SOCKS4, SOCKS5
@@ -94,16 +108,18 @@ impl Proxy {
             Ok(stream) => match stream {
                 Ok(stream) => {
                     self.log("Connection success", Some(stime.elapsed()));
+                    self.request_stat += 1;
                     Some(stream)
                 }
                 Err(e) => {
-                    log::debug!("{}", e);
-                    self.log("Connection error", Some(stime.elapsed()));
+                    self.log(
+                        format!("Connection error: {}", e).as_str(),
+                        Some(stime.elapsed()),
+                    );
                     None
                 }
             },
-            Err(e) => {
-                log::debug!("{}", e);
+            Err(_) => {
                 self.log("Connection timeout", Some(stime.elapsed()));
                 None
             }
@@ -127,22 +143,25 @@ impl Proxy {
                 Some(stime.elapsed()),
             ),
             Err(e) => {
-                log::debug!("{}", e);
+                self.log(
+                    format!("Sending error: {}", e).as_str(),
+                    Some(stime.elapsed()),
+                );
                 // TODO: Log error
             }
         };
     }
 
-    pub async fn recv(&mut self) -> Option<String> {
+    pub async fn recv_all(&mut self) -> Option<Vec<u8>> {
         if self.stream.is_none() {
             log::debug!("Please run .connect() first");
             return None;
         }
+
         let stime = Instant::now();
         let stream = self.stream.as_mut().unwrap();
         let mut chunk = vec![0; 1024];
-        let mut buf = String::new();
-
+        let mut buf = Vec::new();
         loop {
             match timeout(
                 Duration::from_secs(self.timeout as u64),
@@ -155,8 +174,8 @@ impl Proxy {
                         if buf_size == 0 {
                             break;
                         }
-                        let text = String::from_utf8_lossy(&chunk[0..buf_size]);
-                        buf.push_str(&text);
+                        let data = &chunk[0..buf_size];
+                        buf.extend(data)
                     }
                     Err(e) => {
                         log::debug!("{}", e);
@@ -178,19 +197,39 @@ impl Proxy {
         Some(buf)
     }
 
-    pub async fn close(&self) {
-        unimplemented!()
+    pub async fn close(&mut self) {
+        if let Some(stream) = self.stream.as_mut() {
+            match stream.shutdown().await {
+                Ok(_) => {
+                    self.stream = None;
+                    self.log("Connection closed", None)
+                }
+                Err(e) => {
+                    log::debug!("{}", e);
+                }
+            }
+        }
     }
 }
 
 // TODO ADD TYPES
 impl std::fmt::Display for Proxy {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut types = vec![];
+        for (k, v) in &self.types {
+            if let Some(v) = v {
+                types.push(format!("{}: {}", k, v));
+            } else {
+                types.push(k.to_string())
+            }
+        }
+
         write!(
             f,
-            "<Proxy {} {:.2}s {}:{}>",
+            "<Proxy {} {:.2}s [{}] {}:{}>",
             self.geo.iso_code,
             self.avg_resp_time(),
+            types.join(", "),
             self.host,
             self.port
         )

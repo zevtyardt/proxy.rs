@@ -2,7 +2,10 @@
 #![allow(unused_variables)]
 //#![allow(unused_imports)]
 
+use futures_util::{stream, StreamExt};
+use indicatif::HumanDuration;
 use lazy_static::lazy_static;
+use tokio::time;
 
 //mod api;
 mod checker;
@@ -21,59 +24,54 @@ lazy_static! {
 }
 
 fn main() {
-    std::env::set_var("RUST_LOG", "proxy_rs=debug");
+    std::env::set_var("RUST_LOG", "proxy_rs=info");
     pretty_env_logger::init();
 
     RUNTIME.block_on(async {
-        futures_util::future::join_all(providers::get_all_tasks()).await;
-        log::info!("Total proxies scraped: {}", providers::PROXIES.qsize());
+        log::info!("Start collecting proxies and judges");
+        let stime = time::Instant::now();
+        let mut tasks = providers::get_all_tasks();
+        let checker = checker::Checker::new().await;
 
-        let mut tasks: Vec<tokio::task::JoinHandle<()>> = vec![];
-        while let Some(mut prox) = providers::PROXIES.get_nowait() {
-            if tasks.len() == 2 {
-                futures_util::future::join_all(&mut tasks).await;
-                tasks.clear();
-            }
+        let mut checker_c = checker.clone();
+        tasks.push(tokio::task::spawn(async move {
+            checker_c.check_judges().await;
+        }));
 
-            tasks.push(tokio::task::spawn(async move {
-                prox.connect().await;
+        stream::iter(tasks)
+            .map(|f| async { f.await.unwrap() })
+            .buffered(20)
+            .collect::<Vec<()>>()
+            .await;
 
-                if prox.stream.is_some() {
-        prox.send(b"GET http://azenv.net/ HTTP/1.1\r\nUser-Agent: PxBroker/0.4.0/9500\r\nAccept: */*\r\nAccept-Encoding: gzip, deflate\r\nPragma: no-cache\r\nCache-control: no-cache\r\nCookie: cookie=ok\r\nReferer: https://www.google.com/\r\nHost: azenv.net\r\nConnection: close\r\nContent-Length: 0\r\n\r\n").await;
-                   if let Some(data) = prox.recv_all().await {
-                        println!("{:?}", prox.logs);
+        let total_proxies = providers::PROXIES.qsize();
+        log::info!(
+            "{} proxies collected, Runtime {:?}",
+            total_proxies,
+            stime.elapsed()
+        );
 
-                        let response = utils::http::Response::parse(data.as_slice());
-                        println!("{:#?}, {}", response, prox);
+        let mut proxies = vec![];
+        while let Some(proxy) = providers::PROXIES.get_nowait() {
+            proxies.push(proxy);
+        }
 
-                        /*if response.status_code.is_some() && response.status_code.unwrap() == 200 {
-                            break;
-                        }*/
+        let s = stream::iter(proxies)
+            .map(|mut proxy| {
+                let mut checker_cc = checker.clone();
+                async move {
+                    if checker_cc.check(&mut proxy).await {
+                        println!("{}", proxy)
                     }
                 }
-            }))
-        }
+            })
+            .buffer_unordered(500);
+        s.collect::<Vec<()>>().await;
 
-        if !tasks.is_empty() {
-            futures_util::future::join_all(&mut tasks).await;
-            tasks.clear();
-        }
-    })
-}
-
-fn mauin() {
-    std::env::set_var("RUST_LOG", "proxy_rs=debug");
-    pretty_env_logger::init();
-
-    RUNTIME.block_on(async {
-        let mut proxy =
-            proxy::Proxy::create("121.22.53.166", 9091, utils::vec_of_strings!["HTTP"]).await;
-        proxy.connect().await;
-        proxy.send(b"GET http://azenv.net/ HTTP/1.1\r\nUser-Agent: PxBroker/0.4.0/9500\r\nAccept: */*\r\nAccept-Encoding: gzip, deflate\r\nPragma: no-cache\r\nCache-control: no-cache\r\nCookie: cookie=ok\r\nReferer: https://www.google.com/\r\nHost: azenv.net\r\nConnection: close\r\nContent-Length: 0\r\n\r\n").await;
-        if let Some(data) = proxy.recv_all().await {
-            let response = utils::http::Response::parse(data.as_slice());
-            println!("{:?}", response);
-        }
-        println!("{}", proxy);
-   })
+        log::info!(
+            "{} Proxy checked, Runtime {}",
+            total_proxies,
+            HumanDuration(stime.elapsed())
+        );
+    });
 }

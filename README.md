@@ -4,6 +4,7 @@
 - nothing..
 
 # Todo
+- Refactor Code
 - Argument Parser
 - Check IPs against DNSBL
 - Proxy checker

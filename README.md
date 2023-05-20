@@ -1,4 +1,5 @@
 # proxy.rs
+![](https://i.ibb.co/ynwB6pW/output.png)
 
 # Currently working on 
 - nothing..
@@ -17,5 +18,3 @@ this is the most complicated. help
 - [ ] SOCK4 Negotiator
 - [ ] SOCK5 Negotiator
 
-# Note
-this project is currently under development

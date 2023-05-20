@@ -3,6 +3,7 @@ use std::time::Duration;
 use futures_util::future::join_all;
 use regex::Regex;
 use reqwest::{Client, RequestBuilder};
+use tokio::time::timeout;
 
 use crate::{providers::PROXIES, proxy::Proxy, utils::http::random_useragent};
 
@@ -11,7 +12,24 @@ pub struct BaseProvider {
     pub proto: Vec<String>,
     pub domain: String,
     pub client: Client,
-    pub max_retry: i32,
+    pub timeout: i32,
+    pub max_tries: i32,
+}
+
+async fn get_html_with_timeout(task: RequestBuilder, timeout_in_sec: i32) -> Option<String> {
+    if let Ok(fut) = timeout(Duration::from_secs(timeout_in_sec as u64), async {
+        if let Ok(response) = task.send().await {
+            if let Ok(body) = response.text().await {
+                return body;
+            }
+        }
+        String::new()
+    })
+    .await
+    {
+        return Some(fut);
+    }
+    None
 }
 
 impl BaseProvider {
@@ -20,12 +38,10 @@ impl BaseProvider {
     }
 
     pub async fn get_html(&self, task: RequestBuilder) -> String {
-        for _ in 0..self.max_retry {
+        for _ in 0..self.max_tries {
             let task_c = task.try_clone().unwrap();
-            if let Ok(response) = task_c.send().await {
-                if let Ok(body) = response.text().await {
-                    return body;
-                }
+            if let Some(body) = get_html_with_timeout(task_c, self.timeout).await {
+                return body;
             }
         }
         String::new()
@@ -34,11 +50,10 @@ impl BaseProvider {
     pub async fn get_all_html(&self, tasks: Vec<RequestBuilder>) -> Vec<String> {
         let mut mapped_tasks = vec![];
         for task in tasks {
-            let fut = tokio::task::spawn(async {
-                if let Ok(response) = task.send().await {
-                    if let Ok(body) = response.text().await {
-                        return body;
-                    }
+            let timeout = self.timeout;
+            let fut = tokio::task::spawn(async move {
+                if let Some(body) = get_html_with_timeout(task, timeout).await {
+                    return body;
                 }
                 String::new()
             });
@@ -85,14 +100,14 @@ impl BaseProvider {
 
 impl Default for BaseProvider {
     fn default() -> Self {
-        BaseProvider {
+        Self {
             client: Client::builder()
-                .user_agent(random_useragent())
-                .timeout(Duration::from_secs(5)) // todo customable
+                .user_agent(random_useragent(true))
                 .build()
                 .unwrap(),
             domain: String::new(),
-            max_retry: 3,
+            max_tries: 3,
+            timeout: 8,
             proto: vec![],
         }
     }

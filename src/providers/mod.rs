@@ -1,5 +1,6 @@
 pub mod base_provider;
 pub mod freeproxylist;
+pub mod git_repo;
 pub mod ipaddress_com;
 pub mod proxyscrape;
 
@@ -41,6 +42,13 @@ pub fn get_all_tasks() -> Vec<JoinHandle<()>> {
         let mut proxyscrape_socks5 =
             proxyscrape::proxyscrape_socks5::ProxyscrapeComSocks5Provider::default();
         proxyscrape_socks5.get_proxies().await;
+    }));
+
+    /* ===== */
+    tasks.push(task::spawn(async {
+        let mut zevtyardt_proxy_list =
+            git_repo::zevtyardt_proxy_list::GithubZevtyardtProxyListProvider::default();
+        zevtyardt_proxy_list.get_proxies().await;
     }));
 
     tasks

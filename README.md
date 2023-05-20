@@ -1,18 +1,20 @@
 # proxy.rs
 
 # Currently working on 
-- implement negotiator for http proxy checker
+- nothing..
 
 # Todo
+- Argument Parser
 - Check IPs against DNSBL
 - Proxy checker
-- Negotiators
-- add more providers
++ Filter proxies by level, type, or anything else
+- Add more providers
 
 this is the most complicated. help
-- Tcp Connector [HTTP]
-- Tls Connector [HTTPS]
-
+- [x] Tcp Connector [HTTP]
+- [ ] Tls Connector [HTTPS]
+- [ ] SOCK4 Negotiator
+- [ ] SOCK5 Negotiator
 
 # Note
 this project is currently under development

@@ -6,10 +6,7 @@ use tokio::{
     time::{timeout, Instant},
 };
 
-use crate::{
-    negotiators::{http_negotiator::HttpNegotiator, Negotiators},
-    resolver::{GeoData, Resolver},
-};
+use crate::resolver::{GeoData, Resolver};
 
 #[derive(Debug)]
 pub struct Proxy {
@@ -45,7 +42,7 @@ impl Proxy {
             types: vec![],
             logs: vec![],
             negotiator_proto: "HTTP".to_string(),
-            timeout: 8,
+            timeout: 5,
             runtimes: vec![],
             stream: None,
             request_stat: 0,
@@ -64,9 +61,12 @@ impl Proxy {
     pub fn as_text(&self) -> String {
         format!("{}:{}", self.host, self.port)
     }
-    pub fn log(&mut self, msg: &str, mut stime: Option<Duration>) {
+    pub fn log(&mut self, msg: &str, mut stime: Option<Duration>, error: Option<String>) {
         if stime.is_none() {
             stime = Some(Duration::from_micros(0))
+        } else {
+            let runtime_sec = stime.unwrap().as_secs_f64();
+            self.runtimes.push(runtime_sec)
         }
         log::debug!(
             "{}:{} [{}] {}, Runtime {:?}",
@@ -82,23 +82,11 @@ impl Proxy {
             msg.to_string(),
             stime.unwrap(),
         ));
-
-        let runtime_sec = stime.unwrap().as_secs_f64();
-        self.runtimes.push(runtime_sec)
     }
 
-    //    pub fn log_error(&mut self) {}
-
-    pub fn negotiator(&self) -> Box<dyn Negotiators> {
-        // TODO ADD HTTPS, SOCKS4, SOCKS5
-        //
-        // HTTP is default negotiator
-        Box::new(HttpNegotiator::default())
-    }
-
-    pub async fn connect(&mut self) {
+    pub async fn connect(&mut self) -> bool {
         let stime = Instant::now();
-        self.log("Initial connection", Some(stime.elapsed()));
+        self.log("Initial connection", Some(stime.elapsed()), None);
         self.stream = match timeout(
             Duration::from_secs(self.timeout as u64),
             TcpStream::connect(self.as_text()),
@@ -107,7 +95,7 @@ impl Proxy {
         {
             Ok(stream) => match stream {
                 Ok(stream) => {
-                    self.log("Connection success", Some(stime.elapsed()));
+                    self.log("Connection success", Some(stime.elapsed()), None);
                     self.request_stat += 1;
                     Some(stream)
                 }
@@ -115,15 +103,22 @@ impl Proxy {
                     self.log(
                         format!("Connection error: {}", e).as_str(),
                         Some(stime.elapsed()),
+                        None,
                     );
                     None
                 }
             },
-            Err(_) => {
-                self.log("Connection timeout", Some(stime.elapsed()));
+            Err(e) => {
+                self.log(
+                    "Connection timeout",
+                    Some(stime.elapsed()),
+                    Some(e.to_string()),
+                );
                 None
             }
         };
+
+        self.stream.is_some()
     }
 
     pub fn connect_ssl(&self) {
@@ -141,13 +136,14 @@ impl Proxy {
             Ok(_) => self.log(
                 format!("Sending {} bytes", body.len()).as_str(),
                 Some(stime.elapsed()),
+                None,
             ),
             Err(e) => {
                 self.log(
                     format!("Sending error: {}", e).as_str(),
                     Some(stime.elapsed()),
+                    Some(e.to_string()),
                 );
-                // TODO: Log error
             }
         };
     }
@@ -183,8 +179,12 @@ impl Proxy {
                     }
                 },
 
-                Err(_) => {
-                    log::debug!("Read timeout");
+                Err(e) => {
+                    self.log(
+                        format!("Received timeout: {}", e).as_str(),
+                        Some(stime.elapsed()),
+                        Some(e.to_string()),
+                    );
                     // TODO: log error
                     break;
                 }
@@ -193,6 +193,7 @@ impl Proxy {
         self.log(
             format!("Received {} bytes", buf.len()).as_str(),
             Some(stime.elapsed()),
+            None,
         );
         Some(buf)
     }
@@ -202,11 +203,13 @@ impl Proxy {
             match stream.shutdown().await {
                 Ok(_) => {
                     self.stream = None;
-                    self.log("Connection closed", None)
+                    self.log("Connection closed", None, None)
                 }
-                Err(e) => {
-                    log::debug!("{}", e);
-                }
+                Err(e) => self.log(
+                    format!("Failed to close connection: {}", e).as_str(),
+                    None,
+                    Some(e.to_string()),
+                ),
             }
         }
     }

@@ -1,6 +1,6 @@
 use std::{collections::HashMap, time::Duration};
 
-use futures_util::{stream, StreamExt};
+use futures_util::future::join_all;
 use reqwest::Client;
 use url::Url;
 
@@ -8,7 +8,7 @@ use crate::resolver::Resolver;
 
 #[derive(Debug, Clone)]
 pub struct Judge {
-    url: Url,
+    pub url: Url,
 
     pub host: String,
     pub scheme: String,
@@ -125,8 +125,5 @@ pub async fn get_judges(verify_ssl: bool) -> Vec<Judge> {
         })
     }
 
-    stream::iter(fut)
-        .buffer_unordered(50)
-        .collect::<Vec<Judge>>()
-        .await
+    join_all(fut).await
 }

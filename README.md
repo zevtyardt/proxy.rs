@@ -2,13 +2,13 @@
 ![](https://i.ibb.co/ynwB6pW/output.png)
 
 # Currently working on 
-- nothing..
+- refactor code: migrate `tokio::task::spawn` into `dyn CustomFuture`
 
 # Todo
 - Refactor Code
 - Argument Parser
 - Check IPs against DNSBL
-- Proxy checker
+- Proxy checker [BETTER]
 + Filter proxies by level, type, or anything else
 - Add more providers
 

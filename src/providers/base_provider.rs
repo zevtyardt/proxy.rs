@@ -5,7 +5,11 @@ use regex::Regex;
 use reqwest::{Client, RequestBuilder};
 use tokio::time::timeout;
 
-use crate::{providers::PROXIES, proxy::Proxy, utils::http::random_useragent};
+use crate::{
+    providers::{PROXIES, UNIQUE_PROXIES},
+    proxy::Proxy,
+    utils::http::random_useragent,
+};
 
 #[derive(Debug, Clone)]
 pub struct BaseProvider {
@@ -33,7 +37,7 @@ async fn get_html_with_timeout(task: RequestBuilder, timeout_in_sec: i32) -> Opt
 }
 
 impl BaseProvider {
-    pub fn start(&mut self) {
+    pub fn start(&self) {
         log::debug!("Try to get proxies from {}", self.domain);
     }
 
@@ -87,10 +91,12 @@ impl BaseProvider {
         let mut added = 0;
         for (ip, port, proto) in proxies {
             let proxy = Proxy::create(ip, *port, proto.to_vec()).await;
-            let is_added = PROXIES.push_unique(proxy);
+            let host_port = proxy.as_text();
 
-            if is_added {
+            let mut unique_proxy = UNIQUE_PROXIES.lock().unwrap();
+            if !unique_proxy.contains(&host_port) && PROXIES.push(proxy).is_ok() {
                 added += 1;
+                unique_proxy.push(host_port)
             }
         }
 

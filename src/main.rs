@@ -2,10 +2,12 @@
 #![allow(unused_variables)]
 //#![allow(unused_imports)]
 
-use futures_util::{stream, StreamExt};
-use indicatif::HumanDuration;
+use std::time::Duration;
+
 use lazy_static::lazy_static;
-use tokio::time;
+use tokio::{spawn, time};
+
+use crate::utils::run_parallel;
 
 //mod api;
 mod checker;
@@ -30,48 +32,42 @@ fn main() {
     RUNTIME.block_on(async {
         log::info!("Start collecting proxies and judges");
         let stime = time::Instant::now();
-        let mut tasks = providers::get_all_tasks();
-        let checker = checker::Checker::new().await;
+        let mut tasks = vec![];
 
-        let mut checker_c = checker.clone();
-        tasks.push(tokio::task::spawn(async move {
-            checker_c.check_judges().await;
+        tasks.push(tokio::task::spawn(async {
+            let mut checker = checker::Checker::new().await;
+            checker.check_judges().await;
+            loop {
+                let mut tasks = vec![];
+                while let Ok(mut proxy) = providers::PROXIES.pop() {
+                    let mut checker_clone = checker.clone();
+                    tasks.push(spawn(async move {
+                        checker_clone.check_proxy(&mut proxy).await;
+                    }))
+                }
+
+                if !tasks.is_empty() {
+                    let stime = time::Instant::now();
+                    let len_tasks = tasks.len();
+                    run_parallel::<()>(tasks, Some(200)).await;
+                    log::info!(
+                        "{} proxies checked, Runtime {:?}",
+                        len_tasks,
+                        stime.elapsed()
+                    );
+                }
+                time::sleep(Duration::from_secs(5)).await;
+            }
         }));
 
-        stream::iter(tasks)
-            .map(|f| async { f.await.unwrap() })
-            .buffered(20)
-            .collect::<Vec<()>>()
-            .await;
-
-        let total_proxies = providers::PROXIES.qsize();
-        log::info!(
-            "{} proxies collected, Runtime {:?}",
-            total_proxies,
-            stime.elapsed()
-        );
-
-        let mut proxies = vec![];
-        while let Some(proxy) = providers::PROXIES.get_nowait() {
-            proxies.push(proxy);
-        }
-
-        let s = stream::iter(proxies)
-            .map(|mut proxy| {
-                let mut checker_cc = checker.clone();
-                async move {
-                    if checker_cc.check(&mut proxy).await {
-                        println!("{}", proxy)
-                    }
-                }
-            })
-            .buffer_unordered(500);
-        s.collect::<Vec<()>>().await;
-
-        log::info!(
-            "{} Proxy checked, Runtime {}",
-            total_proxies,
-            HumanDuration(stime.elapsed())
-        );
+        /* providers */
+        tasks.push(tokio::task::spawn(async {
+            loop {
+                let all_providers = providers::get_all_tasks();
+                run_parallel::<()>(all_providers, None).await;
+                time::sleep(Duration::from_secs(10)).await;
+            }
+        }));
+        run_parallel::<()>(tasks, None).await;
     });
 }

@@ -26,28 +26,31 @@ pub struct Proxy {
 }
 
 impl Proxy {
-    pub async fn create(host: &str, port: u16, expected_types: Vec<String>) -> Self {
+    pub async fn create(host: &str, port: u16, expected_types: Vec<String>) -> Option<Self> {
         let mut host = host.to_string();
         let resolver = Resolver::new();
         if !resolver.host_is_ip(&host) {
             host = resolver.resolve(host).await;
         }
-        let geo = resolver.get_ip_info(host.parse::<IpAddr>().unwrap()).await;
+        if let Ok(ip_address) = host.parse::<IpAddr>() {
+            let geo = resolver.get_ip_info(ip_address).await;
 
-        Proxy {
-            host,
-            port,
-            expected_types,
-            geo,
-            types: vec![],
-            logs: vec![],
-            negotiator_proto: "HTTP".to_string(),
-            timeout: 5,
-            runtimes: vec![],
-            stream: None,
-            request_stat: 0,
-            error_stat: HashMap::new(),
+            return Some(Proxy {
+                host,
+                port,
+                expected_types,
+                geo,
+                types: vec![],
+                logs: vec![],
+                negotiator_proto: "HTTP".to_string(),
+                timeout: 5,
+                runtimes: vec![],
+                stream: None,
+                request_stat: 0,
+                error_stat: HashMap::new(),
+            });
         }
+        None
     }
 
     pub fn error_rate(&self) -> f64 {

@@ -90,13 +90,14 @@ impl BaseProvider {
     pub async fn update_stack(&self, proxies: &Vec<(String, u16, Vec<String>)>) {
         let mut added = 0;
         for (ip, port, proto) in proxies {
-            let proxy = Proxy::create(ip, *port, proto.to_vec()).await;
-            let host_port = proxy.as_text();
+            if let Some(proxy) = Proxy::create(ip, *port, proto.to_vec()).await {
+                let host_port = proxy.as_text();
 
-            let mut unique_proxy = UNIQUE_PROXIES.lock().unwrap();
-            if !unique_proxy.contains(&host_port) && PROXIES.push(proxy).is_ok() {
-                added += 1;
-                unique_proxy.push(host_port)
+                let mut unique_proxy = UNIQUE_PROXIES.lock().unwrap();
+                if !unique_proxy.contains(&host_port) && PROXIES.push(proxy).is_ok() {
+                    added += 1;
+                    unique_proxy.push(host_port)
+                }
             }
         }
 

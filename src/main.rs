@@ -26,7 +26,7 @@ lazy_static! {
 }
 
 fn main() {
-    std::env::set_var("RUST_LOG", "proxy_rs=info");
+    //std::env::set_var("RUST_LOG", "proxy_rs=info");
     pretty_env_logger::init();
 
     RUNTIME.block_on(async {

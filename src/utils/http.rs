@@ -22,7 +22,7 @@ pub fn get_headers(random_value: bool) -> (HashMap<String, String>, String) {
     let ua = random_useragent(random_value);
 
     let ua_c = ua.clone();
-    let rv = ua_c.split("/").last().unwrap();
+    let rv = ua_c.split('/').last().unwrap();
     let mut headers = HashMap::new();
 
     headers.insert("User-Agent".to_string(), ua);
@@ -36,7 +36,7 @@ pub fn get_headers(random_value: bool) -> (HashMap<String, String>, String) {
     (headers, rv.to_string())
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Response {
     pub version: Option<u8>,
     pub status_code: Option<u16>,
@@ -52,11 +52,11 @@ impl Response {
         let mut chunk = vec![EMPTY_HEADER; 128];
         let mut parser = httparse::Response::new(&mut chunk);
 
-        response.raw = String::from_utf8_lossy(&data).to_string();
         if let Ok(httparse::Status::Complete(n)) = parser.parse(data) {
             response.version = parser.version;
             response.status_code = parser.code;
             response.reason = Some(parser.reason.unwrap().to_string());
+            response.raw.push_str(&String::from_utf8_lossy(&data[..n]));
 
             for header in parser.headers {
                 response.headers.insert(
@@ -78,23 +78,13 @@ impl Response {
                     false
                 }
             } {
-                response.body = String::from_utf8_lossy(&body).to_string();
+                response.body = String::from_utf8_lossy(body).to_string();
             }
+            response.raw.push_str("\r\n\r\n");
+            response.raw.push_str(response.body.as_str());
+        } else {
+            response.raw.push_str(&String::from_utf8_lossy(data))
         }
-
         response
-    }
-}
-
-impl Default for Response {
-    fn default() -> Self {
-        Self {
-            version: None,
-            status_code: None,
-            reason: None,
-            headers: HashMap::new(),
-            body: String::new(),
-            raw: String::new(),
-        }
     }
 }

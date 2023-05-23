@@ -2,7 +2,7 @@
 ![](https://i.ibb.co/Sw6ctWT/a.png)
 
 # Currently working on 
-- Implement TLS Connector [HTTPS]
+- Implement SOCKS4/5 Negotiators
 
 # Todo
 - Refactor Code

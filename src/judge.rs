@@ -1,6 +1,5 @@
 use std::{collections::HashMap, time::Duration};
 
-use futures_util::future::join_all;
 use reqwest::Client;
 use url::Url;
 
@@ -33,7 +32,7 @@ impl Judge {
             ip_address: None,
             is_working: false,
             marks,
-            timeout: 8,
+            timeout: 5,
             verify_ssl: false,
         }
     }
@@ -42,7 +41,7 @@ impl Judge {
         self.verify_ssl = value
     }
 
-    pub async fn check_host(&mut self, real_ext_ip: &String) -> bool {
+    pub async fn check_host(&mut self, real_ext_ip: &str) -> bool {
         if self.scheme.to_uppercase().eq("SMTP") {
             self.is_working = true;
         } else {
@@ -97,10 +96,8 @@ impl std::fmt::Display for Judge {
     }
 }
 
-pub async fn get_judges(verify_ssl: bool) -> Vec<Judge> {
-    let mut fut = vec![];
-    let resolver = Resolver::new();
-    let real_ext_ip = resolver.get_real_ext_ip().await.unwrap();
+pub fn get_judges() -> Vec<Judge> {
+    let mut judges = vec![];
     for url_judge in [
         "http://httpheader.net/azenv.php",
         "http://httpbin.org/get?show_env",
@@ -116,14 +113,8 @@ pub async fn get_judges(verify_ssl: bool) -> Vec<Judge> {
         "http://www.proxy-listen.de/azenv.php",
     ] {
         let mut judge = Judge::new(url_judge);
-        let c_real_ext_ip = real_ext_ip.clone();
-        let c_verify_ssl = verify_ssl.clone();
-        fut.push(async move {
-            judge.set_verify_ssl(c_verify_ssl);
-            judge.check_host(&c_real_ext_ip).await;
-            judge
-        })
+        judge.timeout = 8;
+        judges.push(judge)
     }
-
-    join_all(fut).await
+    judges
 }

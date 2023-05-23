@@ -23,12 +23,12 @@ impl FreeProxyListNetProvider {
 
 impl Default for FreeProxyListNetProvider {
     fn default() -> Self {
-        let mut base_provider = BaseProvider::default();
-        base_provider.proto = vec_of_strings!["HTTP", "CONNECT:80", "HTTPS", "CONNECT:25"];
-        base_provider.domain = "free-proxy-list.net".to_string();
-
-        FreeProxyListNetProvider {
-            base: base_provider,
+        Self {
+            base: BaseProvider {
+                proto: vec_of_strings!["HTTP", "CONNECT:80", "HTTPS", "CONNECT:25"],
+                domain: "free-proxy-list.net".to_string(),
+                ..Default::default()
+            },
             url: "https://free-proxy-list.net/".to_string(),
             pattern: r#"(?P<ip>(?:\d+\.?){4})\:(?P<port>\d+)"#.to_string(),
         }

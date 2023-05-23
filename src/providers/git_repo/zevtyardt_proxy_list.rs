@@ -22,12 +22,19 @@ impl GithubZevtyardtProxyListProvider {
 
 impl Default for GithubZevtyardtProxyListProvider {
     fn default() -> Self {
-        let mut base_provider = BaseProvider::default();
-        base_provider.proto = vec_of_strings!["HTTP", "CONNECT:80", "HTTPS", "CONNECT:25"];
-        base_provider.domain = "zevtyardt/proxy-list".to_string();
-
         Self {
-            base: base_provider,
+            base: BaseProvider {
+                proto: vec_of_strings![
+                    "HTTP",
+                    "CONNECT:80",
+                    "HTTPS",
+                    "CONNECT:25",
+                    "SOCKS4",
+                    "SOCKS5"
+                ],
+                domain: "zevtyardt/proxy-list".to_string(),
+                ..Default::default()
+            },
             url: "https://raw.githubusercontent.com/zevtyardt/proxy-list/main/all.txt".to_string(),
             pattern: r#"(?P<ip>(?:\d+\.?){4})\:(?P<port>\d+)"#.to_string(),
         }

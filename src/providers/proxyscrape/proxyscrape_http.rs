@@ -22,12 +22,12 @@ impl ProxyscrapeComHttpProvider {
 
 impl Default for ProxyscrapeComHttpProvider {
     fn default() -> Self {
-        let mut base_provider = BaseProvider::default();
-        base_provider.proto = vec_of_strings!["HTTP", "CONNECT:80", "HTTPS", "CONNECT:25"];
-        base_provider.domain = "proxyscrape.com^http".to_string();
-
-        ProxyscrapeComHttpProvider {
-            base: base_provider,
+        Self {
+            base: BaseProvider {
+                proto: vec_of_strings!["HTTP", "CONNECT:80", "HTTPS", "CONNECT:25"],
+                domain: "proxyscrape.com/http".to_string(),
+                ..Default::default()
+            },
             url: "https://api.proxyscrape.com/?request=getproxies&proxytype=http".to_string(),
             pattern: r#"(?P<ip>(?:\d+\.?){4})\:(?P<port>\d+)"#.to_string(),
         }

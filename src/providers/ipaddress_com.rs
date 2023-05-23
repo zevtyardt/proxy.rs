@@ -23,12 +23,12 @@ impl IpaddressComProvider {
 
 impl Default for IpaddressComProvider {
     fn default() -> Self {
-        let mut base_provider = BaseProvider::default();
-        base_provider.proto = vec_of_strings!["HTTP", "CONNECT:80", "HTTPS", "CONNECT:25"];
-        base_provider.domain = "ipaddress.com".to_string();
-
-        IpaddressComProvider {
-            base: base_provider,
+        Self {
+            base: BaseProvider {
+                proto: vec_of_strings!["HTTP", "CONNECT:80", "HTTPS", "CONNECT:25"],
+                domain: "ipaddress.com".to_string(),
+                ..Default::default()
+            },
             url: "https://www.ipaddress.com/proxy-list".to_string(),
             pattern: r#"(?P<ip>(?:\d+\.?){4})</a>\:(?P<port>\d+)"#.to_string(),
         }

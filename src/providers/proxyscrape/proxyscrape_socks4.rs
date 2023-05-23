@@ -22,12 +22,12 @@ impl ProxyscrapeComSocks4Provider {
 
 impl Default for ProxyscrapeComSocks4Provider {
     fn default() -> Self {
-        let mut base_provider = BaseProvider::default();
-        base_provider.proto = vec_of_strings!["SOCKS4"];
-        base_provider.domain = "proxyscrape.com^socks4".to_string();
-
-        ProxyscrapeComSocks4Provider {
-            base: base_provider,
+        Self {
+            base: BaseProvider {
+                proto: vec_of_strings!["SOCKS4"],
+                domain: "proxyscrape.com/socks4".to_string(),
+                ..Default::default()
+            },
             url: "https://api.proxyscrape.com/?request=getproxies&proxytype=socks4".to_string(),
             pattern: r#"(?P<ip>(?:\d+\.?){4})\:(?P<port>\d+)"#.to_string(),
         }

@@ -50,6 +50,14 @@ impl Proxy {
         }
     }
 
+    pub fn error_rate(&self) -> f64 {
+        if self.request_stat == 0 {
+            return 0.0;
+        }
+        let sum = self.error_stat.values().sum::<i32>() as f64;
+        sum / self.request_stat as f64
+    }
+
     pub fn avg_resp_time(&self) -> f64 {
         if self.runtimes.is_empty() {
             return 0.0;
@@ -61,27 +69,33 @@ impl Proxy {
     pub fn as_text(&self) -> String {
         format!("{}:{}", self.host, self.port)
     }
-    pub fn log(&mut self, msg: &str, mut stime: Option<Duration>, error: Option<String>) {
-        if stime.is_none() {
-            stime = Some(Duration::from_micros(0))
+    pub fn log(&mut self, msg: &str, stime: Option<Duration>, error: Option<String>) {
+        let runtime = if let Some(stime) = stime {
+            self.runtimes.push(stime.as_secs_f64());
+            stime
         } else {
-            let runtime_sec = stime.unwrap().as_secs_f64();
-            self.runtimes.push(runtime_sec)
-        }
+            Duration::from_micros(0)
+        };
         log::debug!(
             "{}:{} [{}] {}, Runtime {:?}",
             self.host,
             self.port,
             self.negotiator_proto,
             msg,
-            stime.unwrap()
+            runtime
         );
 
-        self.logs.push((
-            self.negotiator_proto.clone(),
-            msg.to_string(),
-            stime.unwrap(),
-        ));
+        self.logs
+            .push((self.negotiator_proto.clone(), msg.to_string(), runtime));
+
+        if let Some(error) = error {
+            if !self.error_stat.contains_key(&error) {
+                self.error_stat.insert(error.clone(), 0);
+            }
+            if let Some(value) = self.error_stat.get_mut(&error) {
+                *value += 1
+            }
+        }
     }
 
     pub async fn connect(&mut self) -> bool {
@@ -103,7 +117,7 @@ impl Proxy {
                     self.log(
                         format!("Connection error: {}", e).as_str(),
                         Some(stime.elapsed()),
-                        None,
+                        Some(e.to_string()),
                     );
                     None
                 }
@@ -242,9 +256,5 @@ impl std::fmt::Display for Proxy {
 impl PartialEq for Proxy {
     fn eq(&self, other: &Self) -> bool {
         self.host == other.host && self.port == other.port
-    }
-
-    fn ne(&self, other: &Self) -> bool {
-        !self.eq(other)
     }
 }

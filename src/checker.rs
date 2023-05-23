@@ -1,12 +1,9 @@
-use std::{
-    collections::HashMap,
-    process::exit,
-    sync::{Arc, Condvar, Mutex},
-};
+use std::{collections::HashMap, process::exit, sync::Arc};
 
+use parking_lot::{Condvar, Mutex};
 use rand::seq::SliceRandom;
 use regex::Regex;
-use tokio::time;
+use tokio::{spawn, time};
 
 use crate::{
     judge::{get_judges, Judge},
@@ -15,17 +12,18 @@ use crate::{
     resolver::Resolver,
     utils::{
         http::{get_headers, Response},
-        vec_of_strings,
+        run_parallel, vec_of_strings,
     },
 };
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Checker {
     pub verify_ssl: bool,
     pub timeout: i32,
     pub max_tries: i32,
     pub method: String,
 
+    disable_protocols: Arc<Mutex<Vec<String>>>,
     judges: Arc<Mutex<HashMap<String, Vec<Judge>>>>,
     ext_ip: String,
     ip_re: Regex,
@@ -36,104 +34,129 @@ impl Checker {
     pub async fn check_judges(&mut self) {
         let stime = time::Instant::now();
 
-        let mut works = 0;
-        for judge in get_judges(self.verify_ssl).await {
-            if judge.is_working {
-                let scheme = &judge.scheme;
-                let mut judges = self.judges.lock().unwrap();
-                if !judges.contains_key(scheme) {
-                    judges.insert(scheme.clone(), vec![]);
-                }
-
-                let v = judges.get_mut(scheme).unwrap();
-                v.push(judge.clone());
-                works += 1;
-            }
+        let ext_ip = self.ext_ip.clone();
+        let mut tasks = vec![];
+        for mut judge in get_judges() {
+            let ssl = self.verify_ssl;
+            let ext_ip = ext_ip.clone();
+            tasks.push(spawn(async move {
+                judge.set_verify_ssl(ssl);
+                judge.check_host(ext_ip.as_str()).await;
+                judge
+            }))
         }
 
-        let mut nojudges = vec![];
-        let mut disable_protocols = vec![];
+        let all_judges = run_parallel::<Judge>(tasks, None).await;
 
+        let mut working = 0;
+        for judge in all_judges {
+            if judge.is_working {
+                let mut judges_by_scheme = self.judges.lock();
+                let scheme = &judge.scheme;
+                if !judges_by_scheme.contains_key(scheme) {
+                    judges_by_scheme.insert(scheme.clone(), vec![]);
+                }
+                if let Some(value) = judges_by_scheme.get_mut(scheme) {
+                    value.push(judge.clone());
+                    working += 1;
+                }
+            }
+        }
+        let mut no_judges = vec![];
         for (scheme, proto) in [
             (
-                "HTTP".to_string(),
+                "HTTP",
                 vec_of_strings!["HTTP", "CONNECT:80", "SOCKS4", "SOCKS5"],
             ),
-            ("HTTPS".to_string(), vec_of_strings!["HTTPS"]),
-            ("SMTP".to_string(), vec_of_strings!["SMTP"]),
+            ("HTTPS", vec_of_strings!["HTTPS"]),
+            ("SMTP", vec_of_strings!["SMTP"]),
         ] {
-            if self.judges.lock().unwrap().get(&scheme).unwrap().is_empty() {
-                nojudges.push(scheme.clone());
-                disable_protocols.extend(proto);
+            let judges_by_scheme = self.judges.lock();
+            if let Some(value) = judges_by_scheme.get(&scheme.to_string()) {
+                if !value.is_empty() {
+                    continue;
+                }
             }
+            no_judges.push(scheme);
+            let mut disable_protocols = self.disable_protocols.lock();
+            disable_protocols.extend(proto);
         }
 
-        if !nojudges.is_empty() {
-            log::warn!("Not found judges for the {:?} protocol. Checking proxy on protocols {:?} is disabled.", nojudges, disable_protocols);
+        if !no_judges.is_empty() {
+            log::warn!("Not found judges for the {:?} protocol. Checking proxy on protocols {:?} is disabled.", no_judges, self.disable_protocols.lock());
         }
-
-        if works > 0 {
-            log::debug!("{} judges added, Runtime {:?}", works, stime.elapsed());
-        } else {
+        if working == 0 {
             log::error!("Not found judges!");
-            exit(0)
+            exit(0);
         }
+        log::info!("{} judges added, Runtime {:?}", working, stime.elapsed());
         self.cv.notify_one();
     }
 
-    pub async fn type_passed(&self, proxy: &Proxy) {
-        unimplemented!();
-    }
-
-    pub async fn in_dnsbl(&self, proxy: &Proxy) {
-        unimplemented!();
-    }
-
-    pub async fn check(&mut self, proxy: &mut Proxy) -> bool {
+    pub async fn check_proxy(&mut self, proxy: &mut Proxy) {
         let expected_types = proxy.expected_types.clone();
-        for proto in expected_types.into_iter() {
-            proxy.negotiator_proto = proto.to_string();
 
-            let judge = self.get_judge(&proto);
-            if proxy.connect().await {
-                // http is default, TODO: add another protos
-                let negotiator = HttpNegotiator::default();
-                let negotiate_success = negotiator
-                    .negotiate(&judge.host, &judge.ip_address.unwrap())
-                    .await;
-
-                if negotiate_success {
-                    let (raw_request, headers, rv) = self.build_raw_request(
-                        &judge.url.scheme().to_string(),
-                        &judge.host,
-                        &judge.url.path().to_string(),
-                        None,
-                    );
-                    proxy.send(raw_request.as_bytes()).await;
-                    if let Some(data) = proxy.recv_all().await {
-                        let response = Response::parse(data.as_slice());
-                        proxy.log("Request: success", None, None);
-
-                        if self.is_response_correct(&response, headers, rv) {
-                            proxy.log("Response: correct", None, None);
-                            let anonimity_lvl = self.get_anonimity_level(&response, judge.marks);
-                            proxy.types.push((proto, Some(anonimity_lvl)));
-                            return true;
-                        } else {
-                            proxy.log(
-                                "Response: not correct",
-                                None,
-                                Some("response_not_correct".to_string()),
-                            )
-                        }
-                    } else {
-                        proxy.log("Request: failed", None, Some("request_failed".to_string()));
-                    }
-                }
+        let mut result = vec![];
+        for proto in expected_types {
+            if proto == "HTTP" {
+                result.push(self.check_proto(proxy, &proto).await);
             }
-            break;
         }
-        false
+
+        if result.iter().any(|i| *i) {
+            println!("{}", proxy)
+        }
+    }
+
+    pub async fn check_proto(&mut self, proxy: &mut Proxy, proto: &String) -> bool {
+        if self.disable_protocols.lock().contains(proto) {
+            return false;
+        }
+
+        let judge = self.get_judge(proto);
+        log::debug!("Selected judge: {}", judge);
+        proxy.negotiator_proto = proto.to_string();
+        if !proxy.connect().await {
+            return false;
+        }
+        let negotiator = HttpNegotiator::default();
+        if !negotiator
+            .negotiate(&judge.host, &judge.ip_address.unwrap())
+            .await
+        {
+            return false;
+        }
+        let (raw_request, headers, rv) = self.build_raw_request(
+            &judge.scheme.to_lowercase(),
+            &judge.host,
+            &judge.url.path().to_string(),
+            None,
+        );
+        let mut is_working = false;
+        proxy.send(raw_request.as_bytes()).await;
+        if let Some(data) = proxy.recv_all().await {
+            proxy.log("Request: success", None, None);
+            let response = Response::parse(data.as_slice());
+
+            if self.is_response_correct(&response, headers, rv) {
+                let anonimity_lvl = self.get_anonimity_level(&response, judge.marks);
+                proxy.types.push((proto.to_string(), Some(anonimity_lvl)));
+                is_working = true;
+            }
+            proxy.close().await;
+        } else {
+            proxy.log("Request: failed", None, Some("request_failed".to_string()));
+            is_working = false;
+        }
+        is_working
+    }
+
+    fn type_passed(&self, proxy: &Proxy) {
+        unimplemented!();
+    }
+
+    async fn in_dnsbl(&self, proxy: &Proxy) {
+        unimplemented!();
     }
 
     fn get_anonimity_level(&self, response: &Response, marks: HashMap<String, usize>) -> String {
@@ -159,7 +182,7 @@ impl Checker {
         } else if via {
             "Anonymous".to_string()
         } else {
-            "Elite".to_string()
+            "High".to_string()
         }
     }
 
@@ -181,7 +204,7 @@ impl Checker {
         } else {
             false
         };
-        let some_ip = self.ip_re.find(&response_raw);
+        let some_ip = self.ip_re.find(response_raw);
         let is_ok = response.status_code.unwrap_or(0) == 200;
         is_ok && version_is_correct && support_referer && support_cookie && some_ip.is_some()
     }
@@ -213,19 +236,19 @@ impl Checker {
         (request, headers, rv)
     }
 
-    fn get_judge(&mut self, proto: &String) -> Judge {
+    fn get_judge(&mut self, proto: &str) -> Judge {
         let mut scheme = "HTTP".to_string();
-        let proto = proto.as_str();
         if proto.eq("HTTPS") {
             scheme = "HTTPS".to_string();
         } else if proto.eq("CONNECT:25") {
             scheme = "SMTP".to_string();
         }
 
-        let mut judges = self.judges.lock().unwrap();
-        while judges.is_empty() {
-            judges = self.cv.wait(judges).unwrap();
+        let mut judges = self.judges.lock();
+        while !judges.contains_key(&scheme) {
+            self.cv.wait(&mut judges)
         }
+
         let judges = judges.get(&scheme).unwrap();
         let mut rng = rand::thread_rng();
         judges.choose(&mut rng).unwrap().clone()
@@ -241,6 +264,7 @@ impl Checker {
             max_tries: 3,
             method: "GET".to_string(),
             judges: Arc::new(Mutex::new(HashMap::new())),
+            disable_protocols: Arc::new(Mutex::new(vec![])),
             ip_re: Regex::new(r#"\d+\.\d+\.\d+\.\d+"#).unwrap(),
             ext_ip: resolver.get_real_ext_ip().await.unwrap(),
             cv: Arc::new(Condvar::new()),

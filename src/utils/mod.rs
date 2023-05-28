@@ -12,13 +12,18 @@ pub(crate) use vec_of_strings;
 pub async fn run_parallel<T>(
     tasks: Vec<JoinHandle<T>>,
     mut num_concurrent: Option<usize>,
-) -> Vec<T> {
+) -> Vec<Option<T>> {
     if num_concurrent.is_none() {
         num_concurrent = Some(tasks.len());
     }
 
     let stream = stream::iter(tasks)
-        .map(|task| async { task.await.unwrap() })
+        .map(|task| async {
+            if let Ok(value) = task.await {
+                return Some(value);
+            }
+            None
+        })
         .buffer_unordered(num_concurrent.unwrap());
     stream.collect().await
 }

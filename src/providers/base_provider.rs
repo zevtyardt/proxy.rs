@@ -77,11 +77,10 @@ impl BaseProvider {
         for cap in re.captures_iter(html) {
             let ip = cap.get(1).unwrap().as_str();
             let port = cap.get(2).unwrap().as_str();
-            proxies.push((
-                ip.to_string(),
-                port.parse::<u16>().unwrap(),
-                self.proto.clone(),
-            ))
+
+            if let Ok(port) = port.parse::<u16>() {
+                proxies.push((ip.to_string(), port, self.proto.clone()))
+            }
         }
         log::debug!("{} proxies received from {}", proxies.len(), self.domain);
         proxies

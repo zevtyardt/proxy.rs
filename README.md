@@ -14,6 +14,6 @@
 
 this is the most complicated. help
 - [x] Tcp Connector [HTTP]
-- [ ] Tls Connector [HTTPS]
+- [x] Tls Connector [HTTPS]
 - [ ] SOCK4 Negotiator
 - [ ] SOCK5 Negotiator

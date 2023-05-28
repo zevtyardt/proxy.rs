@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
-//#![allow(unused_imports)]
+#![allow(unused_imports)]
 
 use std::time::Duration;
 
@@ -26,7 +26,9 @@ lazy_static! {
 }
 
 fn main() {
-    //std::env::set_var("RUST_LOG", "proxy_rs=info");
+    if option_env!("RUST_LOG").is_none() {
+        std::env::set_var("RUST_LOG", "proxy_rs=warn");
+    }
     pretty_env_logger::init();
 
     RUNTIME.block_on(async {
@@ -43,12 +45,13 @@ fn main() {
                     let mut checker_clone = checker.clone();
                     tasks.push(spawn(async move {
                         checker_clone.check_proxy(&mut proxy).await;
-                    }))
+                    }));
                 }
 
                 if !tasks.is_empty() {
                     let stime = time::Instant::now();
                     let len_tasks = tasks.len();
+
                     run_parallel::<()>(tasks, Some(200)).await;
                     log::info!(
                         "{} proxies checked, Runtime {:?}",
@@ -68,6 +71,7 @@ fn main() {
                 time::sleep(Duration::from_secs(10)).await;
             }
         }));
+
         run_parallel::<()>(tasks, None).await;
     });
 }

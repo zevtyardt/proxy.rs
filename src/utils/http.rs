@@ -1,4 +1,4 @@
-use std::{collections::HashMap, io::Read};
+use std::{collections::BTreeMap, io::Read};
 
 use autocompress::Decoder;
 use httparse::EMPTY_HEADER;
@@ -18,12 +18,12 @@ pub fn random_useragent(random_value: bool) -> String {
     format!("{}/{}{}", name, version, rv)
 }
 
-pub fn get_headers(random_value: bool) -> (HashMap<String, String>, String) {
+pub fn get_headers(random_value: bool) -> (BTreeMap<String, String>, String) {
     let ua = random_useragent(random_value);
 
     let ua_c = ua.clone();
     let rv = ua_c.split('/').last().unwrap();
-    let mut headers = HashMap::new();
+    let mut headers = BTreeMap::new();
 
     headers.insert("User-Agent".to_string(), ua);
     headers.insert("Accept".to_string(), "*/*".to_string());
@@ -41,7 +41,7 @@ pub struct Response {
     pub version: Option<u8>,
     pub status_code: Option<u16>,
     pub reason: Option<String>,
-    pub headers: HashMap<String, String>,
+    pub headers: BTreeMap<String, String>,
     pub body: String,
     pub raw: String,
 }

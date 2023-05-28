@@ -1,4 +1,4 @@
-use std::{collections::HashMap, time::Duration};
+use std::{collections::BTreeMap, time::Duration};
 
 use reqwest::Client;
 use url::Url;
@@ -13,7 +13,7 @@ pub struct Judge {
     pub scheme: String,
     pub ip_address: Option<String>,
     pub is_working: bool,
-    pub marks: HashMap<String, usize>,
+    pub marks: BTreeMap<String, usize>,
     pub timeout: u16,
     pub verify_ssl: bool,
 }
@@ -21,7 +21,7 @@ pub struct Judge {
 impl Judge {
     pub fn new(url: &str) -> Self {
         let url = Url::parse(url).unwrap();
-        let mut marks = HashMap::new();
+        let mut marks = BTreeMap::new();
         marks.insert("via".to_string(), 0);
         marks.insert("proxy".to_string(), 0);
 
@@ -110,7 +110,6 @@ pub fn get_judges() -> Vec<Judge> {
         "http://mojeip.net.pl/asdfa/azenv.php",
         "http://proxyjudge.us",
         "http://pascal.hoez.free.fr/azenv.php",
-        "http://www.proxy-listen.de/azenv.php",
     ] {
         let mut judge = Judge::new(url_judge);
         judge.timeout = 8;

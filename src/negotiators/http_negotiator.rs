@@ -6,7 +6,7 @@ pub struct HttpNegotiator {
 }
 
 impl HttpNegotiator {
-    pub async fn negotiate(&self, _host: &str, _ip: &str) -> bool {
+    pub async fn negotiate(&self) -> bool {
         true
     }
 }

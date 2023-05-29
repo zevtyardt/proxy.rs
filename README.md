@@ -1,5 +1,5 @@
 # proxy.rs
-![](https://i.ibb.co/Sw6ctWT/a.png)
+![](https://i.ibb.co/4mwh4VH/a.png)
 
 # Currently working on 
 - Implement SOCKS4/5 Negotiators

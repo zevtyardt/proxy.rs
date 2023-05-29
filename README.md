@@ -2,7 +2,6 @@
   
 # Proxy.rs
 
-![Proxy.rs Preview](https://i.ibb.co/4mwh4VH/a.png)
 
 Proxy.rs is a high-speed proxy tool built with Rust, featuring two main functionalities: scraper and checker.
 
@@ -17,6 +16,10 @@ Proxy.rs is a high-speed proxy tool built with Rust, featuring two main function
 - Navigate to the cloned repository directory:
   `cd proxy.rs`
 - Run `cargo run` to build and execute Proxy.rs.
+
+## Preview
+![Proxy.rs Preview](https://i.ibb.co/4mwh4VH/a.png)
+
 
 ## Currently Under Development
 

@@ -6,13 +6,13 @@ Proxy.rs is a high-speed proxy tool built with Rust, featuring two main function
 
 ## Installation and Usage
 
-1. Install Rust and Cargo.
-2. Install Git.
-3. Clone the Proxy.rs repository by running the following command in your terminal:
+- Install Rust and Cargo.
+- Install Git.
+- Clone the Proxy.rs repository by running the following command in your terminal:
   `git clone https://github.com/zevtyardt/proxy.rs.git`
-4. Navigate to the cloned repository directory:
+- Navigate to the cloned repository directory:
   `cd proxy.rs`
-5. Run `cargo run` to build and execute Proxy.rs.
+- Run `cargo run` to build and execute Proxy.rs.
 
 ## Currently Under Development
 
@@ -29,12 +29,12 @@ The following features are currently being worked on:
 
 Contributions to Proxy.rs are welcome! Here's how you can contribute:
 
-1. Fork the repository from [https://github.com/zevtyardt/proxy.rs](https://github.com/zevtyardt/proxy.rs).
-2. Clone the forked repository to your local machine.
-3. Create a new branch for your changes.
-4. Implement your enhancements and commit them.
-5. Push the branch to your GitHub repository.
-6. Open a pull request in the original repository at [https://github.com/zevtyardt/proxy.rs](https://github.com/zevtyardt/proxy.rs), describing your changes and why they should be merged.
+- Fork this repository.
+- Clone the forked repository to your local machine.
+- Create a new branch for your changes.
+- Implement your enhancements and commit them.
+- Push the branch to your GitHub repository.
+- Open a pull request in the original repository at [https://github.com/zevtyardt/proxy.rs](https://github.com/zevtyardt/proxy.rs), describing your changes and why they should be merged.
 
 ## License
 

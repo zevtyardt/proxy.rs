@@ -1,9 +1,13 @@
+<div align="center">
+  
 # Proxy.rs
 
 ![Proxy.rs Preview](https://i.ibb.co/4mwh4VH/a.png)
 
 Proxy.rs is a high-speed proxy tool built with Rust, featuring two main functionalities: scraper and checker.
 
+  </div>
+  
 ## Installation and Usage
 
 - Install Rust and Cargo.

@@ -1,5 +1,6 @@
 pub mod geolite_database;
 pub mod http;
+pub mod serializer;
 
 macro_rules! vec_of_strings {
     ($($x:expr),*) => (vec![$($x.to_string()),*]);

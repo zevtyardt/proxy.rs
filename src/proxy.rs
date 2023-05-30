@@ -1,4 +1,4 @@
-use std::{collections::HashMap, net::IpAddr, sync::Arc, time::Duration};
+use std::{collections::BTreeMap, net::IpAddr, time::Duration};
 
 use native_tls::TlsConnector;
 use tokio::{
@@ -10,7 +10,10 @@ use tokio_native_tls::TlsStream;
 
 use crate::{
     resolver::{GeoData, Resolver},
-    utils::http::Response,
+    utils::{
+        http::Response,
+        serializer::{Country, Geo, ProxyData, ProxyType, Region},
+    },
 };
 
 #[derive(Debug)]
@@ -31,7 +34,7 @@ pub struct Proxy {
     pub tls_stream: Option<TlsStream<TcpStream>>,
 
     pub request_stat: i32,
-    pub error_stat: HashMap<String, i32>,
+    pub error_stat: BTreeMap<String, i32>,
 }
 
 impl Proxy {
@@ -58,7 +61,7 @@ impl Proxy {
                 tls_stream: None,
                 verify_ssl: false,
                 request_stat: 0,
-                error_stat: HashMap::new(),
+                error_stat: BTreeMap::new(),
             });
         }
         None
@@ -83,6 +86,35 @@ impl Proxy {
     pub fn as_text(&self) -> String {
         format!("{}:{}", self.host, self.port)
     }
+
+    pub fn as_json(&self) -> String {
+        let proxy_data = ProxyData {
+            host: self.host.clone(),
+            port: self.port,
+            geo: Geo {
+                country: Country {
+                    code: self.geo.iso_code.clone(),
+                    name: self.geo.name.clone(),
+                },
+                region: Region {
+                    code: self.geo.region_iso_code.clone(),
+                    name: self.geo.region_name.clone(),
+                },
+                city: self.geo.city_name.clone(),
+            },
+            types: self
+                .types
+                .clone()
+                .into_iter()
+                .map(|(proxy_type, level)| ProxyType { proxy_type, level })
+                .collect(),
+            avg_resp_time: self.avg_resp_time(),
+            error_rate: self.error_rate(),
+        };
+
+        serde_json::to_string(&proxy_data).unwrap()
+    }
+
     pub fn log(&mut self, msg: &str, stime: Option<Duration>, error: Option<String>) {
         let runtime = if let Some(stime) = stime {
             self.runtimes.push(stime.as_secs_f64());
@@ -119,9 +151,9 @@ impl Proxy {
 
     pub async fn send(&mut self, body: &[u8]) {
         if self.tls_stream.is_some() {
-            self.send_tls(&body).await;
+            self.send_tls(body).await;
         } else if self.tcp_stream.is_some() {
-            self.send_tcp(&body).await
+            self.send_tcp(body).await
         } else {
             log::error!("must connect to the proxy first");
         }
@@ -143,24 +175,42 @@ impl Proxy {
             return self.recv_all_tls().await;
         } else if self.tcp_stream.is_some() {
             return self.recv_all_tcp().await;
+        } else {
+            log::error!("must connect to the proxy first");
         }
         None
     }
 
     pub async fn close(&mut self) {
-        if let Some(stream) = self.tcp_stream.as_mut() {
-            match stream.shutdown().await {
-                Ok(_) => {
-                    self.tcp_stream = None;
-                    self.log("Connection closed", None, None)
-                }
-                Err(e) => self.log(
-                    format!("Failed to close connection: {}", e).as_str(),
-                    None,
-                    Some(e.to_string()),
-                ),
+        if self.tcp_stream.is_some() {
+            self.close_tls().await;
+        }
+        if self.tls_stream.is_some() {
+            self.close_tcp().await;
+        }
+    }
+}
+
+impl std::fmt::Display for Proxy {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut types = vec![];
+        for (k, v) in &self.types {
+            if let Some(v) = v {
+                types.push(format!("{}: {}", k, v));
+            } else {
+                types.push(k.to_string())
             }
         }
+
+        write!(
+            f,
+            "<Proxy {} {:.2}s [{}] {}:{}>",
+            self.geo.iso_code,
+            self.avg_resp_time(),
+            types.join(", "),
+            self.host,
+            self.port
+        )
     }
 }
 
@@ -245,7 +295,7 @@ impl Proxy {
             },
             Err(e) => self.log(
                 format!("Received timeout: {}", e).as_str(),
-                None,
+                Some(stime.elapsed()),
                 Some(e.to_string()),
             ),
         }
@@ -285,7 +335,7 @@ impl Proxy {
                 Err(e) => {
                     self.log(
                         format!("Received timeout: {}", e).as_str(),
-                        None,
+                        Some(stime.elapsed()),
                         Some(e.to_string()),
                     );
                     // TODO: log error
@@ -300,17 +350,35 @@ impl Proxy {
         );
         Some(buf)
     }
+
+    async fn close_tcp(&mut self) {
+        if let Some(stream) = self.tcp_stream.as_mut() {
+            match stream.shutdown().await {
+                Ok(_) => {
+                    self.tcp_stream = None;
+                    self.log("Connection closed", None, None)
+                }
+                Err(e) => self.log(
+                    format!("Failed to close connection: {}", e).as_str(),
+                    None,
+                    Some(e.to_string()),
+                ),
+            }
+        }
+    }
 }
 
 // TLS / SSL
 impl Proxy {
     /// Only used to check the https protocol not for servers.
     pub async fn connect_ssl(&mut self, connect_payload: &[u8]) -> bool {
+        /*
         if self.tcp_stream.is_some() {
             self.logs.clear();
             self.runtimes.clear();
             self.request_stat = 0;
         }
+        */
 
         let tcp_stream = self.connect_tcp().await;
         if tcp_stream.is_none() {
@@ -368,7 +436,7 @@ impl Proxy {
             Err(e) => {
                 self.log(
                     format!("Received timeout: {}", e).as_str(),
-                    None,
+                    Some(stime_recv.elapsed()),
                     Some(e.to_string()),
                 );
                 return false;
@@ -410,7 +478,11 @@ impl Proxy {
                 }
             },
             Err(e) => {
-                self.log("SSL: Connection timeout", None, Some(e.to_string()));
+                self.log(
+                    "SSL: Connection timeout",
+                    Some(stime.elapsed()),
+                    Some(e.to_string()),
+                );
                 None
             }
         };
@@ -466,7 +538,7 @@ impl Proxy {
             },
             Err(e) => self.log(
                 format!("SSL: Received timeout: {}", e).as_str(),
-                None,
+                Some(stime.elapsed()),
                 Some(e.to_string()),
             ),
         }
@@ -506,7 +578,7 @@ impl Proxy {
                 Err(e) => {
                     self.log(
                         format!("SSL: Received timeout: {}", e).as_str(),
-                        None,
+                        Some(stime.elapsed()),
                         Some(e.to_string()),
                     );
                     // TODO: log error
@@ -521,28 +593,21 @@ impl Proxy {
         );
         Some(buf)
     }
-}
 
-impl std::fmt::Display for Proxy {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut types = vec![];
-        for (k, v) in &self.types {
-            if let Some(v) = v {
-                types.push(format!("{}: {}", k, v));
-            } else {
-                types.push(k.to_string())
+    async fn close_tls(&mut self) {
+        if let Some(stream) = self.tls_stream.as_mut() {
+            match stream.shutdown().await {
+                Ok(_) => {
+                    self.tcp_stream = None;
+                    self.log("SSL: Connection closed", None, None)
+                }
+                Err(e) => self.log(
+                    format!("SSL: Failed to close connection: {}", e).as_str(),
+                    None,
+                    Some(e.to_string()),
+                ),
             }
         }
-
-        write!(
-            f,
-            "<Proxy {} {:.2}s [{}] {}:{}>",
-            self.geo.iso_code,
-            self.avg_resp_time(),
-            types.join(", "),
-            self.host,
-            self.port
-        )
     }
 }
 

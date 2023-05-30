@@ -32,8 +32,6 @@ fn main() {
     pretty_env_logger::init();
 
     RUNTIME.block_on(async {
-        log::info!("Start collecting proxies and judges");
-        let stime = time::Instant::now();
         let mut tasks = vec![];
 
         tasks.push(tokio::task::spawn(async {
@@ -44,7 +42,9 @@ fn main() {
                 while let Ok(mut proxy) = providers::PROXIES.pop() {
                     let mut checker_clone = checker.clone();
                     tasks.push(spawn(async move {
-                        checker_clone.check_proxy(&mut proxy).await;
+                        if checker_clone.check_proxy(&mut proxy).await {
+                            println!("{proxy}")
+                        }
                     }));
                 }
 
@@ -52,14 +52,14 @@ fn main() {
                     let stime = time::Instant::now();
                     let len_tasks = tasks.len();
 
-                    run_parallel::<()>(tasks, Some(200)).await;
+                    run_parallel::<()>(tasks, Some(250)).await;
                     log::info!(
                         "{} proxies checked, Runtime {:?}",
                         len_tasks,
                         stime.elapsed()
                     );
                 }
-                time::sleep(Duration::from_secs(5)).await;
+                time::sleep(Duration::from_secs(30)).await;
             }
         }));
 

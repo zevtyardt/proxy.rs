@@ -101,7 +101,7 @@ impl Checker {
         self.cv.notify_one();
     }
 
-    pub async fn check_proxy(&mut self, proxy: &mut Proxy) {
+    pub async fn check_proxy(&mut self, proxy: &mut Proxy) -> bool {
         let expected_types = vec_of_strings!["HTTP", "HTTPS"]; //proxy.expected_types.clone();
 
         let mut result = vec![];
@@ -109,9 +109,7 @@ impl Checker {
             result.push(self.check_proto(proxy, proto).await);
         }
 
-        if result.iter().any(|i| *i) {
-            println!("{}", proxy)
-        }
+        result.iter().any(|i| *i)
     }
 
     pub async fn check_proto(&mut self, proxy: &mut Proxy, proto: &String) -> bool {
@@ -144,9 +142,8 @@ impl Checker {
             let mut anonimity_lvl = None;
             let response = Response::parse(data.as_slice());
 
-            // log::warn!("=====\n{raw_request}\n{0}\n{1}", response.raw, proto);
-
-            if self.is_response_correct(&response, headers, rv, proxy) {
+            if self.is_response_correct(&response, headers, rv) {
+                //log::warn!("=====\n{raw_request}\n{0}\n{1}", response.raw, proto);
                 if check_anon_lvl {
                     anonimity_lvl = Some(self.get_anonimity_level(&response, judge.marks));
                 }
@@ -178,7 +175,7 @@ impl Checker {
         if proto == "SOCKS4" {
             let negotiator = Socks4Negotiator::default();
             (
-                negotiator.negotiate(proxy, judge).await,
+                negotiator.negotiate(proxy).await,
                 negotiator.use_full_path,
                 negotiator.check_anon_lvl,
             )
@@ -231,8 +228,6 @@ impl Checker {
         response: &Response,
         headers: BTreeMap<String, String>,
         rv: String,
-
-        proxy: &mut Proxy,
     ) -> bool {
         let response_raw = response.raw.to_lowercase();
         let version_is_correct = response_raw.contains(&rv);

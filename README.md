@@ -13,9 +13,13 @@ Proxy.rs is a high-speed proxy tool built with Rust, featuring two main function
 - Install Rust and Cargo.
 - Install Git.
 - Clone the Proxy.rs repository by running the following command in your terminal:
-  `git clone https://github.com/zevtyardt/proxy.rs.git`
+  ```bash
+  git clone https://github.com/zevtyardt/proxy.rs.git
+  ```
 - Navigate to the cloned repository directory:
-  `cd proxy.rs`
+  ```bash
+  cd proxy.rs
+  ```
 - Run `cargo run` to build and execute Proxy.rs.
 
 ## Currently Under Development

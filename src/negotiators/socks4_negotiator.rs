@@ -4,7 +4,7 @@ use byteorder::BigEndian;
 use byteorder_pack::PackTo;
 use tokio::io::AsyncReadExt;
 
-use crate::{judge::Judge, proxy::Proxy};
+use crate::proxy::Proxy;
 
 #[derive(Debug, Clone)]
 pub struct Socks4Negotiator {
@@ -14,15 +14,15 @@ pub struct Socks4Negotiator {
 }
 
 impl Socks4Negotiator {
-    pub async fn negotiate(&self, proxy: &mut Proxy, judge: &Judge) -> bool {
+    pub async fn negotiate(&self, proxy: &mut Proxy) -> bool {
         let bip = proxy.host.parse::<Ipv4Addr>();
-        if !bip.is_ok() {
+        if bip.is_err() {
             return false;
         }
 
         let data = (4u8, 1u8, proxy.port, bip.unwrap().octets(), 0u8);
         let mut buf = Cursor::new(Vec::new());
-        if !data.pack_to::<BigEndian, _>(&mut buf).is_ok() {
+        if data.pack_to::<BigEndian, _>(&mut buf).is_err() {
             return false;
         }
         let payload = buf.into_inner();
@@ -32,7 +32,7 @@ impl Socks4Negotiator {
             let mut data = data.as_slice();
 
             let version = data.read_u8().await;
-            if !version.is_ok() || version.unwrap() != 0 {
+            if version.is_err() || version.unwrap() != 0 {
                 proxy.log(
                     "Invalid response version",
                     None,
@@ -42,7 +42,7 @@ impl Socks4Negotiator {
             }
 
             let resp = data.read_u8().await;
-            if !resp.is_ok() || resp.unwrap() != 90 {
+            if resp.is_err() || resp.unwrap() != 90 {
                 proxy.log(
                     "Request rejected or Failed",
                     None,

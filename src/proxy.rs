@@ -35,6 +35,8 @@ pub struct Proxy {
 
     pub request_stat: i32,
     pub error_stat: BTreeMap<String, i32>,
+
+    pub is_working: bool,
 }
 
 impl Proxy {
@@ -62,6 +64,7 @@ impl Proxy {
                 verify_ssl: false,
                 request_stat: 0,
                 error_stat: BTreeMap::new(),
+                is_working: false,
             });
         }
         None

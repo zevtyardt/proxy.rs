@@ -32,13 +32,9 @@ impl Judge {
             ip_address: None,
             is_working: false,
             marks,
-            timeout: 5,
+            timeout: 8,
             verify_ssl: false,
         }
-    }
-
-    pub fn set_verify_ssl(&mut self, value: bool) {
-        self.verify_ssl = value
     }
 
     pub async fn check_host(&mut self, real_ext_ip: &str) -> bool {
@@ -111,8 +107,7 @@ pub fn get_judges() -> Vec<Judge> {
         "http://proxyjudge.us",
         "http://pascal.hoez.free.fr/azenv.php",
     ] {
-        let mut judge = Judge::new(url_judge);
-        judge.timeout = 8;
+        let judge = Judge::new(url_judge);
         judges.push(judge)
     }
     judges

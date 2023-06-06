@@ -26,6 +26,7 @@ impl Socks4Negotiator {
             return false;
         }
         let payload = buf.into_inner();
+
         proxy.send(payload.as_slice()).await;
 
         if let Some(data) = proxy.recv(8).await {

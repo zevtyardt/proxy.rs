@@ -1,15 +1,18 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
-#![allow(unused_imports)]
+//#![allow(unused_imports)]
+#![allow(unreachable_code)]
 
-use std::time::Duration;
-
+use clap::Parser;
 use lazy_static::lazy_static;
-use tokio::{spawn, time};
+use parking_lot::Mutex;
+use simple_logger::SimpleLogger;
+use std::{sync::Arc, time::Duration};
+use tokio::time;
 
 use crate::utils::run_parallel;
 
-//mod api;
+mod argument;
 mod checker;
 mod judge;
 mod negotiators;
@@ -26,40 +29,61 @@ lazy_static! {
 }
 
 fn main() {
-    if option_env!("RUST_LOG").is_none() {
-        std::env::set_var("RUST_LOG", "proxy_rs=warn");
-    }
-    pretty_env_logger::init();
+    let cli = argument::Cli::parse();
+    //std::process::exit(0);
 
-    RUNTIME.block_on(async {
+    let _ = SimpleLogger::new()
+        .with_level(log::LevelFilter::Off)
+        .with_module_level("proxy_rs", log::LevelFilter::Info)
+        .without_timestamps()
+        .init();
+    log::info!("Start collecting proxies..");
+
+    RUNTIME.block_on(async move {
         let mut tasks = vec![];
 
-        tasks.push(tokio::task::spawn(async {
+        let max_tries = cli.max_tries as i32;
+        let max_conn = cli.max_conn as usize;
+        let timeout = cli.timeout as i32;
+
+        let limit = cli.limit.unwrap_or(999999);
+        let counter = Arc::new(Mutex::new(1));
+
+        tasks.push(tokio::task::spawn(async move {
             let mut checker = checker::Checker::new().await;
+            checker.max_tries = max_tries;
+            checker.timeout = timeout;
+
             checker.check_judges().await;
             loop {
-                let mut tasks = vec![];
+                let mut proxies = vec![];
                 while let Ok(mut proxy) = providers::PROXIES.pop() {
                     let mut checker_clone = checker.clone();
-                    tasks.push(spawn(async move {
+                    let counter = counter.clone();
+                    let limit = limit;
+                    proxies.push(tokio::spawn(async move {
                         if checker_clone.check_proxy(&mut proxy).await {
-                            println!("{proxy}")
+                            let mut counter = counter.lock();
+                            println!("{}", proxy);
+
+                            *counter += 1;
+                            if *counter > limit {
+                                std::process::exit(0)
+                            }
                         }
                     }));
                 }
 
-                if !tasks.is_empty() {
+                if !proxies.is_empty() {
                     let stime = time::Instant::now();
-                    let len_tasks = tasks.len();
+                    let t = run_parallel::<()>(proxies, Some(max_conn)).await;
 
-                    run_parallel::<()>(tasks, Some(250)).await;
                     log::info!(
-                        "{} proxies checked, Runtime {:?}",
-                        len_tasks,
+                        "Finished checking {} proxies, Runtime {:?}",
+                        t.len(),
                         stime.elapsed()
-                    );
+                    )
                 }
-                time::sleep(Duration::from_secs(30)).await;
             }
         }));
 

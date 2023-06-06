@@ -26,8 +26,12 @@ pub struct Checker {
     pub max_tries: i32,
     pub method: String,
 
+    pub support_referer: bool,
+    pub support_cookie: bool,
+
     disable_protocols: Arc<Mutex<Vec<String>>>,
     judges: Arc<Mutex<BTreeMap<String, Vec<Judge>>>>,
+
     ext_ip: String,
     ip_re: Regex,
     cv: Arc<Condvar>,
@@ -39,37 +43,31 @@ impl Checker {
 
         let ext_ip = self.ext_ip.clone();
         let mut tasks = vec![];
+
         for mut judge in get_judges() {
             let ssl = self.verify_ssl;
             let ext_ip = ext_ip.clone();
+            let all_judges = self.judges.clone();
             tasks.push(spawn(async move {
-                judge.set_verify_ssl(ssl);
+                judge.verify_ssl = ssl;
                 judge.check_host(ext_ip.as_str()).await;
-                judge
+
+                if judge.is_working {
+                    let mut judges_by_scheme = all_judges.lock();
+                    let scheme = &judge.scheme;
+                    if !judges_by_scheme.contains_key(scheme) {
+                        judges_by_scheme.insert(scheme.clone(), vec![]);
+                    }
+                    if let Some(value) = judges_by_scheme.get_mut(scheme) {
+                        value.push(judge.clone())
+                    }
+                }
             }))
         }
 
-        let all_judges = run_parallel::<Judge>(tasks, None).await;
+        run_parallel::<()>(tasks, None).await;
 
         let mut working = 0;
-        for judge in all_judges {
-            if judge.is_none() {
-                continue;
-            }
-
-            let judge = judge.unwrap();
-            if judge.is_working {
-                let mut judges_by_scheme = self.judges.lock();
-                let scheme = &judge.scheme;
-                if !judges_by_scheme.contains_key(scheme) {
-                    judges_by_scheme.insert(scheme.clone(), vec![]);
-                }
-                if let Some(value) = judges_by_scheme.get_mut(scheme) {
-                    value.push(judge.clone());
-                    working += 1;
-                }
-            }
-        }
         let mut no_judges = vec![];
         for (scheme, proto) in [
             (
@@ -82,6 +80,7 @@ impl Checker {
             let judges_by_scheme = self.judges.lock();
             if let Some(value) = judges_by_scheme.get(&scheme.to_string()) {
                 if !value.is_empty() {
+                    working += value.len();
                     continue;
                 }
             }
@@ -102,11 +101,18 @@ impl Checker {
     }
 
     pub async fn check_proxy(&mut self, proxy: &mut Proxy) -> bool {
-        let expected_types = vec_of_strings!["HTTP", "HTTPS"]; //proxy.expected_types.clone();
+        let expected_types = vec_of_strings!["SOCKS4", "HTTPS", "HTTP"]; // proxy.expected_types.clone();
 
         let mut result = vec![];
         for proto in &expected_types {
-            result.push(self.check_proto(proxy, proto).await);
+            let mut is_working = false;
+            for _ in 0..self.max_tries {
+                is_working = self.check_proto(proxy, proto).await;
+                if is_working {
+                    break;
+                }
+            }
+            result.push(is_working)
         }
 
         result.iter().any(|i| *i)
@@ -121,20 +127,22 @@ impl Checker {
         let judge = self.get_judge(proto);
         proxy.log(format!("Selected judge: {}", judge).as_str(), None, None);
 
+        let mut is_working = false;
         if proto != "HTTPS" && !proxy.connect().await {
+            proxy.close().await;
             return false;
         }
 
         let (negotiate_success, use_full_path, check_anon_lvl) =
             self.negotiate(proxy, &judge, proto).await;
         if !negotiate_success {
+            proxy.close().await;
             return false;
         }
 
         let path = judge.url.path().to_string();
         let (raw_request, headers, rv) =
             self.build_raw_request(&judge.host, &path, use_full_path, None);
-        let mut is_working = false;
 
         proxy.send(raw_request.as_bytes()).await;
         if let Some(data) = proxy.recv_all().await {
@@ -142,10 +150,11 @@ impl Checker {
             let mut anonimity_lvl = None;
             let response = Response::parse(data.as_slice());
 
-            if self.is_response_correct(&response, headers, rv) {
-                //log::warn!("=====\n{raw_request}\n{0}\n{1}", response.raw, proto);
+            //log::warn!("=====\n{raw_request}\n{0}", response.raw);
+
+            if self.get_response_status(&response, headers, rv) {
                 if check_anon_lvl {
-                    anonimity_lvl = Some(self.get_anonimity_level(&response, judge.marks));
+                    anonimity_lvl = Some(self.get_anonimity_level(&response, &judge.marks));
                 }
 
                 is_working = true;
@@ -155,6 +164,7 @@ impl Checker {
         } else {
             proxy.log("Request: failed", None, Some("request_failed".to_string()));
         }
+
         is_working
     }
 
@@ -186,17 +196,19 @@ impl Checker {
                 negotiator.use_full_path,
                 negotiator.check_anon_lvl,
             )
-        } else {
+        } else if proto == "HTTP" {
             let negotiator = HttpNegotiator::default();
             (
                 negotiator.negotiate().await,
                 negotiator.use_full_path,
                 negotiator.check_anon_lvl,
             )
+        } else {
+            (false, false, false)
         }
     }
 
-    fn get_anonimity_level(&self, response: &Response, marks: BTreeMap<String, usize>) -> String {
+    fn get_anonimity_level(&self, response: &Response, marks: &BTreeMap<String, usize>) -> String {
         let content = response.body.to_lowercase();
         let mut via = false;
         if let Some(via_m) = marks.get("via") {
@@ -223,7 +235,7 @@ impl Checker {
         }
     }
 
-    fn is_response_correct(
+    fn get_response_status(
         &self,
         response: &Response,
         headers: BTreeMap<String, String>,
@@ -231,20 +243,27 @@ impl Checker {
     ) -> bool {
         let response_raw = response.raw.to_lowercase();
         let version_is_correct = response_raw.contains(&rv);
-        let support_referer = if let Some(referer) = headers.get("Referer") {
-            response_raw.contains(&referer.to_lowercase())
+        let support_referer = if self.support_referer {
+            if let Some(referer) = headers.get("Referer") {
+                response_raw.contains(&referer.to_lowercase())
+            } else {
+                false
+            }
         } else {
-            false
+            true
         };
-        let support_cookie = if let Some(cookie) = headers.get("Cookie") {
-            response_raw.contains(&cookie.to_lowercase())
+        let support_cookie = if self.support_cookie {
+            if let Some(cookie) = headers.get("Cookie") {
+                response_raw.contains(&cookie.to_lowercase())
+            } else {
+                false
+            }
         } else {
-            false
+            true
         };
         let some_ip = self.ip_re.find(&response_raw).is_some();
         let is_ok = response.status_code.unwrap_or(0) == 200;
 
-        //println!("{response:#?}: is_ok: {is_ok}, some_ip: {some_ip}, support_cookie: {support_cookie}, support_referer: {support_referer}, rv: {version_is_correct}, {proxy}");
         is_ok && version_is_correct && some_ip && support_referer && support_cookie
     }
 
@@ -309,6 +328,8 @@ impl Checker {
             max_tries: 3,
             method: "GET".to_string(),
             judges: Arc::new(Mutex::new(BTreeMap::new())),
+            support_cookie: false,
+            support_referer: false,
             disable_protocols: Arc::new(Mutex::new(vec![])),
             ip_re: Regex::new(r#"\d+\.\d+\.\d+\.\d+"#).unwrap(),
             ext_ip: resolver.get_real_ext_ip().await.unwrap(),

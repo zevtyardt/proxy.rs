@@ -37,11 +37,11 @@ pub async fn check_judges(ssl: bool, ext_ip: String) {
 
         tasks.push(spawn(async move {
             let scheme = &judge.scheme.clone();
-            if let Some(value) = JUDGES.lock().get(scheme) {
-                if value.is_empty() {
-                    return;
-                }
-            }
+            // if let Some(value) = JUDGES.lock().get(scheme) {
+            //     if value.is_empty() {
+            //         return;
+            //     }
+            // }
 
             judge.verify_ssl = ssl;
             judge.check_host(ext_ip.as_str()).await;
@@ -53,7 +53,6 @@ pub async fn check_judges(ssl: bool, ext_ip: String) {
                 }
                 if let Some(value) = judges_by_scheme.get_mut(scheme) {
                     value.push(judge.clone());
-                    CV.notify_one();
                 }
             }
         }))
@@ -81,6 +80,7 @@ pub async fn check_judges(ssl: bool, ext_ip: String) {
         no_judges.push(scheme);
         let mut disable_protocols = DISABLE_PROTOCOLS.lock();
         disable_protocols.extend(proto);
+        CV.notify_one();
     }
 
     if !no_judges.is_empty() {

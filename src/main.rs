@@ -148,7 +148,6 @@ fn main() {
                             if !proxies.is_empty() {
                                 let stime = time::Instant::now();
                                 let ret = run_parallel::<()>(proxies, Some(max_conn)).await;
-
                                 log::info!(
                                     "Finished checking {} proxies. Runtime {:?}",
                                     ret.len(),

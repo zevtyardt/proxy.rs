@@ -28,6 +28,7 @@ pub struct Checker {
 
     pub support_referer: bool,
     pub support_cookie: bool,
+    pub expected_types: Vec<String>,
 
     disable_protocols: Arc<Mutex<Vec<String>>>,
     judges: Arc<Mutex<BTreeMap<String, Vec<Judge>>>>,
@@ -49,12 +50,18 @@ impl Checker {
             let ext_ip = ext_ip.clone();
             let all_judges = self.judges.clone();
             tasks.push(spawn(async move {
+                let scheme = &judge.scheme.clone();
+                if let Some(value) = all_judges.lock().get(scheme) {
+                    if value.len() > 0 {
+                        return;
+                    }
+                }
+
                 judge.verify_ssl = ssl;
                 judge.check_host(ext_ip.as_str()).await;
 
                 if judge.is_working {
                     let mut judges_by_scheme = all_judges.lock();
-                    let scheme = &judge.scheme;
                     if !judges_by_scheme.contains_key(scheme) {
                         judges_by_scheme.insert(scheme.clone(), vec![]);
                     }
@@ -105,6 +112,10 @@ impl Checker {
 
         let mut result = vec![];
         for proto in &expected_types {
+            if !self.expected_types.is_empty() && self.expected_types.contains(proto) {
+                continue;
+            }
+
             let mut is_working = false;
             for _ in 0..self.max_tries {
                 is_working = self.check_proto(proxy, proto).await;
@@ -166,14 +177,6 @@ impl Checker {
         }
 
         is_working
-    }
-
-    fn type_passed(&self, proxy: &Proxy) {
-        unimplemented!();
-    }
-
-    async fn in_dnsbl(&self, proxy: &Proxy) {
-        unimplemented!();
     }
 
     async fn negotiate(
@@ -330,6 +333,7 @@ impl Checker {
             judges: Arc::new(Mutex::new(BTreeMap::new())),
             support_cookie: false,
             support_referer: false,
+            expected_types: vec![],
             disable_protocols: Arc::new(Mutex::new(vec![])),
             ip_re: Regex::new(r#"\d+\.\d+\.\d+\.\d+"#).unwrap(),
             ext_ip: resolver.get_real_ext_ip().await.unwrap(),

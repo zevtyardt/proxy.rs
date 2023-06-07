@@ -37,10 +37,6 @@ async fn get_html_with_timeout(task: RequestBuilder, timeout_in_sec: i32) -> Opt
 }
 
 impl BaseProvider {
-    pub fn start(&self) {
-        log::debug!("Try to get proxies from {}", self.domain);
-    }
-
     pub async fn get_html(&self, task: RequestBuilder) -> String {
         for _ in 0..self.max_tries {
             let task_c = task.try_clone().unwrap();

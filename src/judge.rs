@@ -96,12 +96,12 @@ pub fn get_judges() -> Vec<Judge> {
     let mut judges = vec![];
     for url_judge in [
         "http://httpheader.net/azenv.php",
-        "http://httpbin.org/get?show_env",
         "https://httpbin.org/get?show_env",
         "smtp://smtp.gmail.com",
+        "http://httpbin.org/get?show_env",
+        "https://www.proxy-listen.de/azenv.php",
         "smtp://aspmx.l.google.com",
         "http://azenv.net/",
-        "https://www.proxy-listen.de/azenv.php",
         "https://httpheader.net/azenv.php",
         "http://mojeip.net.pl/asdfa/azenv.php",
         "http://proxyjudge.us",

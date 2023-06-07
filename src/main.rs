@@ -92,31 +92,36 @@ fn main() {
                     let expected_countries = find_args.countries;
                     let format = find_args.format;
                     let limit = find_args.limit.unwrap_or(999999);
+                    let verify_ssl = false;
+
+                    let mut checker = checker::Checker::new().await;
+                    let ext_ip = checker.ext_ip.clone();
 
                     tasks.push(tokio::task::spawn(async move {
-                        let mut checker = checker::Checker::new().await;
+                        checker::check_judges(verify_ssl, ext_ip).await;
+                    }));
+
+                    tasks.push(tokio::task::spawn(async move {
                         checker.max_tries = max_tries;
                         checker.timeout = timeout;
                         checker.expected_types = expected_types;
                         checker.expected_levels = expected_levels;
                         checker.expected_countries = expected_countries;
 
-                        checker.check_judges().await;
-
                         if format == "json" {
                             print!("[")
                         }
                         loop {
-                            let mut proxies = vec![];
+                            let mut proxies = Vec::with_capacity(1000);
                             while let Ok(mut proxy) = providers::PROXIES.pop() {
-                                if proxies.len() > 1000 {
+                                if proxies.len() >= 1000 {
                                     break;
                                 }
                                 let mut checker_clone = checker.clone();
                                 let counter = counter.clone();
                                 let limit = limit;
                                 let format = format.clone();
-                                proxies.push(tokio::spawn(async move {
+                                proxies.push(tokio::task::spawn(async move {
                                     if checker_clone.check_proxy(&mut proxy).await {
                                         let mut counter = counter.lock();
                                         *counter += 1;

@@ -28,7 +28,10 @@ pub struct Checker {
 
     pub support_referer: bool,
     pub support_cookie: bool,
+
     pub expected_types: Vec<String>,
+    pub expected_levels: Vec<String>,
+    pub expected_countries: Vec<String>,
 
     disable_protocols: Arc<Mutex<Vec<String>>>,
     judges: Arc<Mutex<BTreeMap<String, Vec<Judge>>>>,
@@ -72,7 +75,7 @@ impl Checker {
             }))
         }
 
-        run_parallel::<()>(tasks, None).await;
+        run_parallel::<()>(tasks, Some(5)).await;
 
         let mut working = 0;
         let mut no_judges = vec![];
@@ -112,28 +115,32 @@ impl Checker {
 
         let mut result = vec![];
         for proto in &expected_types {
-            if !self.expected_types.is_empty() && self.expected_types.contains(proto) {
-                continue;
-            }
-
-            let mut is_working = false;
-            for _ in 0..self.max_tries {
-                is_working = self.check_proto(proxy, proto).await;
-                if is_working {
-                    break;
+            if self.expected_types.contains(proto)
+                && !self.disable_protocols.lock().contains(proto)
+                && (self.expected_countries.is_empty()
+                    || self.expected_countries.contains(&proxy.geo.iso_code))
+            {
+                let mut is_working = false;
+                for _ in 0..self.max_tries {
+                    is_working = self.check_proto(proxy, proto).await;
+                    if is_working {
+                        break;
+                    }
                 }
+                if proto == "HTTP" && is_working && !self.expected_levels.is_empty() {
+                    is_working = proxy.types.iter().any(|(_, level)| {
+                        level.is_some() && self.expected_levels.contains(&level.clone().unwrap())
+                    });
+                }
+                result.push(is_working)
             }
-            result.push(is_working)
         }
 
-        result.iter().any(|i| *i)
+        proxy.is_working = result.iter().any(|i| *i);
+        proxy.is_working
     }
 
     pub async fn check_proto(&mut self, proxy: &mut Proxy, proto: &String) -> bool {
-        if self.disable_protocols.lock().contains(proto) {
-            return false;
-        }
-
         proxy.negotiator_proto = proto.to_string();
         let judge = self.get_judge(proto);
         proxy.log(format!("Selected judge: {}", judge).as_str(), None, None);
@@ -334,6 +341,8 @@ impl Checker {
             support_cookie: false,
             support_referer: false,
             expected_types: vec![],
+            expected_countries: vec![],
+            expected_levels: vec![],
             disable_protocols: Arc::new(Mutex::new(vec![])),
             ip_re: Regex::new(r#"\d+\.\d+\.\d+\.\d+"#).unwrap(),
             ext_ip: resolver.get_real_ext_ip().await.unwrap(),

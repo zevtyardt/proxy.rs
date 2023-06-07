@@ -1,5 +1,6 @@
 use std::{collections::BTreeMap, process::exit, sync::Arc};
 
+use lazy_static::lazy_static;
 use parking_lot::{Condvar, Mutex};
 use rand::seq::SliceRandom;
 use regex::Regex;
@@ -19,6 +20,83 @@ use crate::{
     },
 };
 
+lazy_static! {
+    static ref DISABLE_PROTOCOLS: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+    static ref JUDGES: Arc<Mutex<BTreeMap<String, Vec<Judge>>>> =
+        Arc::new(Mutex::new(BTreeMap::new()));
+    static ref CV: Arc<Condvar> = Arc::new(Condvar::new());
+}
+
+pub async fn check_judges(ssl: bool, ext_ip: String) {
+    let stime = time::Instant::now();
+    let mut tasks = vec![];
+
+    for mut judge in get_judges() {
+        let ssl = ssl;
+        let ext_ip = ext_ip.clone();
+        let all_judges = JUDGES.clone();
+        tasks.push(spawn(async move {
+            let scheme = &judge.scheme.clone();
+            if let Some(value) = all_judges.lock().get(scheme) {
+                if value.len() > 0 {
+                    return;
+                }
+            }
+
+            judge.verify_ssl = ssl;
+            judge.check_host(ext_ip.as_str()).await;
+
+            if judge.is_working {
+                let mut judges_by_scheme = all_judges.lock();
+                if !judges_by_scheme.contains_key(scheme) {
+                    judges_by_scheme.insert(scheme.clone(), vec![]);
+                }
+                if let Some(value) = judges_by_scheme.get_mut(scheme) {
+                    value.push(judge.clone())
+                }
+            }
+        }))
+    }
+
+    run_parallel::<()>(tasks, None).await;
+
+    let mut working = 0;
+    let mut no_judges = vec![];
+    for (scheme, proto) in [
+        (
+            "HTTP",
+            vec_of_strings!["HTTP", "CONNECT:80", "SOCKS4", "SOCKS5"],
+        ),
+        ("HTTPS", vec_of_strings!["HTTPS"]),
+        ("SMTP", vec_of_strings!["SMTP"]),
+    ] {
+        let judges_by_scheme = JUDGES.lock();
+        if let Some(value) = judges_by_scheme.get(&scheme.to_string()) {
+            if !value.is_empty() {
+                working += value.len();
+                continue;
+            }
+        }
+        no_judges.push(scheme);
+        let mut disable_protocols = DISABLE_PROTOCOLS.lock();
+        disable_protocols.extend(proto);
+    }
+
+    if !no_judges.is_empty() {
+        log::warn!(
+            "Not found judges for the {:?} protocol. Checking proxy on protocols {:?} is disabled.",
+            no_judges,
+            DISABLE_PROTOCOLS.lock()
+        );
+    }
+    if working == 0 {
+        log::error!("Not found judges!");
+        exit(0);
+    }
+    log::info!("{} judges added, Runtime {:?}", working, stime.elapsed());
+    CV.notify_one();
+}
+
 #[derive(Clone, Debug)]
 pub struct Checker {
     pub verify_ssl: bool,
@@ -33,90 +111,18 @@ pub struct Checker {
     pub expected_levels: Vec<String>,
     pub expected_countries: Vec<String>,
 
-    disable_protocols: Arc<Mutex<Vec<String>>>,
-    judges: Arc<Mutex<BTreeMap<String, Vec<Judge>>>>,
-
-    ext_ip: String,
+    pub ext_ip: String,
     ip_re: Regex,
-    cv: Arc<Condvar>,
 }
 
 impl Checker {
-    pub async fn check_judges(&mut self) {
-        let stime = time::Instant::now();
-
-        let ext_ip = self.ext_ip.clone();
-        let mut tasks = vec![];
-
-        for mut judge in get_judges() {
-            let ssl = self.verify_ssl;
-            let ext_ip = ext_ip.clone();
-            let all_judges = self.judges.clone();
-            tasks.push(spawn(async move {
-                let scheme = &judge.scheme.clone();
-                if let Some(value) = all_judges.lock().get(scheme) {
-                    if value.len() > 0 {
-                        return;
-                    }
-                }
-
-                judge.verify_ssl = ssl;
-                judge.check_host(ext_ip.as_str()).await;
-
-                if judge.is_working {
-                    let mut judges_by_scheme = all_judges.lock();
-                    if !judges_by_scheme.contains_key(scheme) {
-                        judges_by_scheme.insert(scheme.clone(), vec![]);
-                    }
-                    if let Some(value) = judges_by_scheme.get_mut(scheme) {
-                        value.push(judge.clone())
-                    }
-                }
-            }))
-        }
-
-        run_parallel::<()>(tasks, Some(5)).await;
-
-        let mut working = 0;
-        let mut no_judges = vec![];
-        for (scheme, proto) in [
-            (
-                "HTTP",
-                vec_of_strings!["HTTP", "CONNECT:80", "SOCKS4", "SOCKS5"],
-            ),
-            ("HTTPS", vec_of_strings!["HTTPS"]),
-            ("SMTP", vec_of_strings!["SMTP"]),
-        ] {
-            let judges_by_scheme = self.judges.lock();
-            if let Some(value) = judges_by_scheme.get(&scheme.to_string()) {
-                if !value.is_empty() {
-                    working += value.len();
-                    continue;
-                }
-            }
-            no_judges.push(scheme);
-            let mut disable_protocols = self.disable_protocols.lock();
-            disable_protocols.extend(proto);
-        }
-
-        if !no_judges.is_empty() {
-            log::warn!("Not found judges for the {:?} protocol. Checking proxy on protocols {:?} is disabled.", no_judges, self.disable_protocols.lock());
-        }
-        if working == 0 {
-            log::error!("Not found judges!");
-            exit(0);
-        }
-        log::info!("{} judges added, Runtime {:?}", working, stime.elapsed());
-        self.cv.notify_one();
-    }
-
     pub async fn check_proxy(&mut self, proxy: &mut Proxy) -> bool {
         let expected_types = vec_of_strings!["SOCKS4", "HTTPS", "HTTP"]; // proxy.expected_types.clone();
 
         let mut result = vec![];
         for proto in &expected_types {
             if self.expected_types.contains(proto)
-                && !self.disable_protocols.lock().contains(proto)
+                && !DISABLE_PROTOCOLS.lock().contains(proto)
                 && (self.expected_countries.is_empty()
                     || self.expected_countries.contains(&proxy.geo.iso_code))
             {
@@ -318,9 +324,9 @@ impl Checker {
             scheme = "SMTP".to_string();
         }
 
-        let mut judges = self.judges.lock();
+        let mut judges = JUDGES.lock();
         while !judges.contains_key(&scheme) {
-            self.cv.wait(&mut judges)
+            CV.wait(&mut judges)
         }
 
         let judges = judges.get(&scheme).unwrap();
@@ -337,16 +343,13 @@ impl Checker {
             timeout: 5,
             max_tries: 3,
             method: "GET".to_string(),
-            judges: Arc::new(Mutex::new(BTreeMap::new())),
             support_cookie: false,
             support_referer: false,
             expected_types: vec![],
             expected_countries: vec![],
             expected_levels: vec![],
-            disable_protocols: Arc::new(Mutex::new(vec![])),
             ip_re: Regex::new(r#"\d+\.\d+\.\d+\.\d+"#).unwrap(),
             ext_ip: resolver.get_real_ext_ip().await.unwrap(),
-            cv: Arc::new(Condvar::new()),
         }
     }
 }

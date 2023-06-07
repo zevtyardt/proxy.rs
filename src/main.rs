@@ -1,7 +1,7 @@
 #![allow(dead_code)]
-#![allow(unused_variables)]
+//#![allow(unused_variables)]
 //#![allow(unused_imports)]
-#![allow(unreachable_code)]
+//#![allow(unreachable_code)]
 
 use clap::Parser;
 use parking_lot::Mutex;
@@ -45,13 +45,12 @@ fn main() {
             let mut tasks = vec![];
 
             let max_tries = cli.max_tries as i32;
-            let max_conn = cli.max_conn as usize;
+            let max_conn = cli.max_conn;
             let timeout = cli.timeout as i32;
             let counter = Arc::new(Mutex::new(1));
 
             match cli.sub {
                 Commands::Grab(grab_args) => {
-                    let expected_countries = grab_args.countries;
                     let format = grab_args.format;
                     let limit = grab_args.limit.unwrap_or(999999);
 

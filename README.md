@@ -22,16 +22,23 @@ Proxy.rs is a high-speed proxy tool built with Rust, featuring two main function
   ```
 - Run `cargo run` to build and execute Proxy.rs.
 
+## Examples
+
+#### find
+Find and show 10 HTTP(S) proxies from EU (European Union) with the high level of anonymity:
+```bash
+$ proxy-rs find --types HTTP HTTPS -l 10 --levels High --countries EU
+```
+![](./svg/find.svg)
+
+
 ## Currently Under Development
 
 The following features are currently being worked on:
 
-- Refactoring the code for improved readability and maintainability.
-- Adding an argument parser for easier configuration and customization.
-- Implementing a SOCKS4 negotiator for seamless proxy connections.
 - Implementing proxy DNSBL (Domain Name System Blacklist) checking for enhanced security.
 - Improving the speed of the proxy checker for faster validation.
-- Adding the ability to filter proxy results based on various criteria such as type, country, etc.
+- Added more providers
 
 ## Contribution
 
@@ -42,7 +49,7 @@ Contributions to Proxy.rs are welcome! Here's how you can contribute:
 - Create a new branch for your changes.
 - Implement your enhancements and commit them.
 - Push the branch to your GitHub repository.
-- Open a pull request in the original repository at [https://github.com/zevtyardt/proxy.rs](https://github.com/zevtyardt/proxy.rs), describing your changes and why they should be merged.
+- Open a pull request in this repository, describing your changes and why they should be merged.
 
 ## License
 

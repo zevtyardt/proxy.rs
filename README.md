@@ -22,6 +22,12 @@ Proxy.rs is a high-speed proxy tool built with Rust, featuring two main function
   ```
 - Run `cargo run` to build and execute Proxy.rs.
 
+or install directly using the command
+
+```bash
+$ cargo install --git https://github.com/zevtyardt/proxy.rs
+```
+
 ## Examples
 
 #### find

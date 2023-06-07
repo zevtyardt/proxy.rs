@@ -34,11 +34,11 @@ pub async fn check_judges(ssl: bool, ext_ip: String) {
     for mut judge in get_judges() {
         let ssl = ssl;
         let ext_ip = ext_ip.clone();
-        let all_judges = JUDGES.clone();
+
         tasks.push(spawn(async move {
             let scheme = &judge.scheme.clone();
-            if let Some(value) = all_judges.lock().get(scheme) {
-                if value.len() > 0 {
+            if let Some(value) = JUDGES.lock().get(scheme) {
+                if value.is_empty() {
                     return;
                 }
             }
@@ -47,12 +47,13 @@ pub async fn check_judges(ssl: bool, ext_ip: String) {
             judge.check_host(ext_ip.as_str()).await;
 
             if judge.is_working {
-                let mut judges_by_scheme = all_judges.lock();
+                let mut judges_by_scheme = JUDGES.lock();
                 if !judges_by_scheme.contains_key(scheme) {
                     judges_by_scheme.insert(scheme.clone(), vec![]);
                 }
                 if let Some(value) = judges_by_scheme.get_mut(scheme) {
-                    value.push(judge.clone())
+                    value.push(judge.clone());
+                    CV.notify_one();
                 }
             }
         }))
@@ -94,7 +95,6 @@ pub async fn check_judges(ssl: bool, ext_ip: String) {
         exit(0);
     }
     log::info!("{} judges added, Runtime {:?}", working, stime.elapsed());
-    CV.notify_one();
 }
 
 #[derive(Clone, Debug)]

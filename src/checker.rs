@@ -27,7 +27,7 @@ lazy_static! {
     static ref CV: Arc<Condvar> = Arc::new(Condvar::new());
 }
 
-pub async fn check_judges(ssl: bool, ext_ip: String) {
+pub async fn check_judges(ssl: bool, ext_ip: String, expected_types: Vec<String>) {
     let stime = time::Instant::now();
     let mut tasks = vec![];
 
@@ -35,14 +35,12 @@ pub async fn check_judges(ssl: bool, ext_ip: String) {
         let ssl = ssl;
         let ext_ip = ext_ip.clone();
 
+        if !expected_types.contains(&judge.scheme) {
+            continue;
+        }
+
         tasks.push(spawn(async move {
             let scheme = &judge.scheme.clone();
-            // if let Some(value) = JUDGES.lock().get(scheme) {
-            //     if value.is_empty() {
-            //         return;
-            //     }
-            // }
-
             judge.verify_ssl = ssl;
             judge.check_host(ext_ip.as_str()).await;
 
@@ -70,6 +68,9 @@ pub async fn check_judges(ssl: bool, ext_ip: String) {
         ("HTTPS", vec_of_strings!["HTTPS"]),
         ("SMTP", vec_of_strings!["SMTP"]),
     ] {
+        if !expected_types.contains(&scheme.to_string()) {
+            continue;
+        }
         let judges_by_scheme = JUDGES.lock();
         if let Some(value) = judges_by_scheme.get(&scheme.to_string()) {
             if !value.is_empty() {

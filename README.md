@@ -6,7 +6,7 @@ Proxy.rs is a high-speed proxy tool built with Rust, featuring two main function
 </div>
 
 ## Preview
-![Proxy.rs Preview](https://i.ibb.co/4mwh4VH/a.png)
+![Proxy.rs Preview](./images/preview.svg)
 
 ## Installation and Usage
 
@@ -35,7 +35,7 @@ Find and show 10 HTTP(S) proxies from EU (European Union) with the high level of
 ```bash
 $ proxy-rs find --types HTTP HTTPS -l 10 --levels High --countries EU
 ```
-![](./svg/find.svg)
+![](./images/find.svg)
 
 
 ## Currently Under Development

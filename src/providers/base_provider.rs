@@ -1,14 +1,12 @@
 use std::time::Duration;
 
-use futures_util::future::join_all;
 use regex::Regex;
 use reqwest::{Client, RequestBuilder};
 use tokio::time::timeout;
 
 use crate::{
     providers::{PROXIES, UNIQUE_PROXIES},
-    proxy::Proxy,
-    utils::http::random_useragent,
+    utils::{http::random_useragent, run_parallel},
 };
 
 #[derive(Debug, Clone)]
@@ -59,12 +57,8 @@ impl BaseProvider {
             });
             mapped_tasks.push(fut);
         }
-
-        join_all(mapped_tasks)
-            .await
-            .into_iter()
-            .map(|f| f.unwrap())
-            .collect()
+        let ret = run_parallel(mapped_tasks, None).await;
+        ret.into_iter().map(|f| f.unwrap()).collect()
     }
 
     pub fn find_proxies(&self, pattern: String, html: &str) -> Vec<(String, u16, Vec<String>)> {
@@ -85,14 +79,26 @@ impl BaseProvider {
     pub async fn update_stack(&self, proxies: &Vec<(String, u16, Vec<String>)>) {
         let mut added = 0;
         for (ip, port, proto) in proxies {
-            if let Some(proxy) = Proxy::create(ip, *port, proto.to_vec()).await {
-                let host_port = proxy.as_text();
+            //
+            // if let Some(proxy) = Proxy::create(ip, *port, proto.to_vec()).await {
+            //     let host_port = proxy.as_text();
+            //
+            //     let mut unique_proxy = UNIQUE_PROXIES.lock();
+            //     if !unique_proxy.contains(&host_port) && PROXIES.push(proxy).is_ok() {
+            //         added += 1;
+            //         unique_proxy.push(host_port)
+            //     }
+            // }
 
-                let mut unique_proxy = UNIQUE_PROXIES.lock().unwrap();
-                if !unique_proxy.contains(&host_port) && PROXIES.push(proxy).is_ok() {
-                    added += 1;
-                    unique_proxy.push(host_port)
-                }
+            let host_port = format!("{}:{}", ip, port);
+            let mut unique_proxy = UNIQUE_PROXIES.lock();
+            if !unique_proxy.contains(&host_port)
+                && PROXIES
+                    .push((ip.to_owned(), *port, proto.to_owned()))
+                    .is_ok()
+            {
+                added += 1;
+                unique_proxy.push(host_port)
             }
         }
 

@@ -5,16 +5,16 @@ pub mod ipaddress_com;
 pub mod proxyscan;
 pub mod proxyscrape;
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use concurrent_queue::ConcurrentQueue;
 use lazy_static::lazy_static;
+use parking_lot::Mutex;
 use tokio::{spawn, task::JoinHandle};
 
-use crate::proxy::Proxy;
-
 lazy_static! {
-    pub static ref PROXIES: ConcurrentQueue<Proxy> = ConcurrentQueue::bounded(500);
+    pub static ref PROXIES: ConcurrentQueue<(String, u16, Vec<String>)> =
+        ConcurrentQueue::unbounded();
     pub static ref UNIQUE_PROXIES: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
 }
 

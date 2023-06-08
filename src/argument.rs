@@ -4,7 +4,7 @@ use clap::{Args, Parser, Subcommand};
 #[derive(Parser, Debug, Clone)]
 pub struct Cli {
     /// The maximum number of concurrent checks of proxies
-    #[arg(long, default_value = "50")]
+    #[arg(long, default_value = "200")]
     pub max_conn: usize,
 
     /// The maximum number of attempts to check a proxy

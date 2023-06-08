@@ -38,6 +38,7 @@ fn main() {
     log::info!("Start collecting proxies.. ",);
 
     tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(4)
         .enable_all()
         .build()
         .unwrap()
@@ -116,6 +117,7 @@ fn main() {
                                 if proxies.len() >= 1000 {
                                     break;
                                 }
+
                                 let mut checker_clone = checker.clone();
                                 let counter = counter.clone();
                                 let limit = limit;

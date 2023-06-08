@@ -61,26 +61,31 @@ fn main() {
                         }
 
                         loop {
-                            while let Ok(proxy) = providers::PROXIES.pop() {
-                                let mut counter = counter.lock();
-                                *counter += 1;
+                            while let Ok((host, port, expected_types)) = providers::PROXIES.pop() {
+                                if let Some(proxy) =
+                                    proxy::Proxy::create(host.as_str(), port, expected_types).await
+                                {
+                                    //                   while let Ok(proxy) = providers::PROXIES.pop() {
+                                    let mut counter = counter.lock();
+                                    *counter += 1;
 
-                                match format.as_str() {
-                                    "text" => print!("{}", proxy.as_text()),
-                                    "json" => print!("{}", proxy.as_json()),
-                                    _ => print!("{}", proxy),
-                                }
-                                if *counter > limit {
-                                    if format == "json" {
-                                        println!("]");
-                                    } else {
-                                        println!()
+                                    match format.as_str() {
+                                        "text" => print!("{}", proxy.as_text()),
+                                        "json" => print!("{}", proxy.as_json()),
+                                        _ => print!("{}", proxy),
                                     }
-                                    std::process::exit(0)
-                                } else if format == "json" {
-                                    print!(",");
+                                    if *counter > limit {
+                                        if format == "json" {
+                                            println!("]");
+                                        } else {
+                                            println!()
+                                        }
+                                        std::process::exit(0)
+                                    } else if format == "json" {
+                                        print!(",");
+                                    }
+                                    println!()
                                 }
-                                println!()
                             }
                         }
                     }))
@@ -97,8 +102,9 @@ fn main() {
                     let mut checker = checker::Checker::new().await;
                     let ext_ip = checker.ext_ip.clone();
 
+                    let expected_types_clone = expected_types.clone();
                     tasks.push(tokio::task::spawn(async move {
-                        checker::check_judges(verify_ssl, ext_ip).await;
+                        checker::check_judges(verify_ssl, ext_ip, expected_types_clone).await;
                     }));
 
                     tasks.push(tokio::task::spawn(async move {
@@ -112,39 +118,43 @@ fn main() {
                             print!("[")
                         }
                         loop {
-                            let mut proxies = Vec::with_capacity(1000);
-                            while let Ok(mut proxy) = providers::PROXIES.pop() {
-                                if proxies.len() >= 1000 {
-                                    break;
-                                }
-
-                                let mut checker_clone = checker.clone();
-                                let counter = counter.clone();
-                                let limit = limit;
-                                let format = format.clone();
-                                proxies.push(tokio::task::spawn(async move {
-                                    if checker_clone.check_proxy(&mut proxy).await {
-                                        let mut counter = counter.lock();
-                                        *counter += 1;
-
-                                        match format.as_str() {
-                                            "text" => print!("{}", proxy.as_text()),
-                                            "json" => print!("{}", proxy.as_json()),
-                                            _ => print!("{}", proxy),
-                                        }
-                                        if *counter > limit {
-                                            if format == "json" {
-                                                println!("]");
-                                            } else {
-                                                println!()
-                                            }
-                                            std::process::exit(0)
-                                        } else if format == "json" {
-                                            print!(",");
-                                        }
-                                        println!()
+                            let mut proxies = Vec::with_capacity(5000);
+                            while let Ok((host, port, expected_types)) = providers::PROXIES.pop() {
+                                if let Some(mut proxy) =
+                                    proxy::Proxy::create(host.as_str(), port, expected_types).await
+                                {
+                                    if proxies.len() >= 5000 {
+                                        break;
                                     }
-                                }));
+
+                                    let mut checker_clone = checker.clone();
+                                    let counter = counter.clone();
+                                    let limit = limit;
+                                    let format = format.clone();
+                                    proxies.push(tokio::task::spawn(async move {
+                                        if checker_clone.check_proxy(&mut proxy).await {
+                                            let mut counter = counter.lock();
+                                            *counter += 1;
+
+                                            match format.as_str() {
+                                                "text" => print!("{}", proxy.as_text()),
+                                                "json" => print!("{}", proxy.as_json()),
+                                                _ => print!("{}", proxy),
+                                            }
+                                            if *counter > limit {
+                                                if format == "json" {
+                                                    println!("]");
+                                                } else {
+                                                    println!()
+                                                }
+                                                std::process::exit(0)
+                                            } else if format == "json" {
+                                                print!(",");
+                                            }
+                                            println!()
+                                        }
+                                    }));
+                                }
                             }
 
                             if !proxies.is_empty() {

@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" id="terminal" baseProfile="full" viewBox="0 0 687 676" width="687" version="1.1">
+    <defs>
+        <termtosvg:template_settings xmlns:termtosvg="https://github.com/nbedos/termtosvg">
+            <termtosvg:screen_geometry columns="80" rows="35"/>
+            <termtosvg:animation type="css"/>
+        </termtosvg:template_settings>
+        <style type="text/css" id="generated-style"><![CDATA[#screen {
+                font-family: 'DejaVu Sans Mono', monospace;
+                font-style: normal;
+                font-size: 14px;
+            }
+
+        text {
+            dominant-baseline: text-before-edge;
+            white-space: pre;
+        }
+    
+            :root {
+                --animation-duration: 6694ms;
+            }
+
+            @keyframes roll {
+                0.000%{transform:translateY(0px)}
+31.521%{transform:translateY(-612px)}
+31.730%{transform:translateY(-1224px)}
+43.935%{transform:translateY(-1836px)}
+84.240%{transform:translateY(-2448px)}
+84.912%{transform:translateY(-3060px)}
+85.061%{transform:translateY(-3672px)}
+100.000%{transform:translateY(-3672px)}
+            }
+
+            #screen_view {
+                animation-duration: 6694ms;
+                animation-iteration-count:infinite;
+                animation-name:roll;
+                animation-timing-function: steps(1,end);
+                animation-fill-mode: forwards;
+            }
+        ]]></style>
+        <style type="text/css" id="user-style">
+            /* The colors defined below are the default 16 colors used for rendering text of the terminal. Adjust
+               them as needed.
+               gjm8 color theme (source: https://terminal.sexy/) */
+            .foreground {fill: #f8f8f2}
+            .background {fill: #272822}
+            .color0 {fill: #272822}
+            .color1 {fill: #f92672}
+            .color2 {fill: #a6e22e}
+            .color3 {fill: #f4bf75}
+            .color4 {fill: #66d9ef}
+            .color5 {fill: #ae81ff}
+            .color6 {fill: #a1efe4}
+            .color7 {fill: #f8f8f2}
+            .color8 {fill: #75715e}
+            .color9 {fill: #fd971f}
+            .color10 {fill: #383830}
+            .color11 {fill: #49483e}
+            .color12 {fill: #a59f85}
+            .color13 {fill: #f5f4f1}
+            .color14 {fill: #cc6633}
+            .color15 {fill: #f9f8f5}
+        </style>
+    </defs>
+    <rect id="terminalui" class="background" width="100%" height="100%" ry="4.5826941"/>
+    <circle cx="24" cy="23" r="7" class="color1"/>
+    <circle cx="44" cy="23" r="7" class="color3"/>
+    <circle cx="64" cy="23" r="7" class="color2"/>
+    <svg id="screen" width="640" height="595" x="23" y="50" viewBox="0 0 640 595" preserveAspectRatio="xMidYMin slice"><rect class="background" height="100%" width="100%" x="0" y="0"/><defs><g id="g1"><text x="0" textLength="80" class="foreground">localhost </text><text x="80" textLength="32" class="color4">:: ~</text><text x="112" textLength="88" class="color2"> &#187; proxy-rs</text><text x="200" textLength="240" class="foreground"> find --types HTTPS -c AS -l 1</text></g><g id="g2"><text x="0" textLength="8" class="background"> </text></g><g id="g3"><text x="0" textLength="320" class="foreground">&lt;Proxy AS 0.18s [HTTPS] 8.219.97.248:80&gt;</text></g><g id="g4"><text x="0" textLength="80" class="foreground">localhost </text><text x="80" textLength="40" class="color4">:: ~ </text><text x="120" textLength="16" class="color2">&#187; </text><text x="136" textLength="8" class="background"> </text></g><g id="g5"><text x="0" textLength="80" class="foreground">localhost </text><text x="80" textLength="40" class="color4">:: ~ </text><text x="120" textLength="56" class="color2">&#187; http </text><text x="176" textLength="272" class="color3">"https://httpbin.org/get?show_env"</text></g><g id="g6"><text x="0" textLength="64" class="foreground">--proxy=</text><text x="64" textLength="200" class="color3">"https://8.219.97.248:80"</text></g><g id="g7"><text x="0" textLength="32" class="color4">HTTP</text><text x="32" textLength="8" class="foreground">/</text><text x="40" textLength="24" class="color4">1.1</text><text x="64" textLength="8" class="foreground"> </text><text x="72" textLength="24" class="color4">200</text><text x="96" textLength="8" class="foreground"> </text><text x="104" textLength="16" class="color6">OK</text></g><g id="g8"><text x="0" textLength="256" class="color6">Access-Control-Allow-Credentials</text><text x="256" textLength="48" class="foreground">: true</text></g><g id="g9"><text x="0" textLength="216" class="color6">Access-Control-Allow-Origin</text><text x="216" textLength="24" class="foreground">: *</text></g><g id="g10"><text x="0" textLength="80" class="color6">Connection</text><text x="80" textLength="96" class="foreground">: keep-alive</text></g><g id="g11"><text x="0" textLength="112" class="color6">Content-Length</text><text x="112" textLength="40" class="foreground">: 438</text></g><g id="g12"><text x="0" textLength="96" class="color6">Content-Type</text><text x="96" textLength="144" class="foreground">: application/json</text></g><g id="g13"><text x="0" textLength="32" class="color6">Date</text><text x="32" textLength="248" class="foreground">: Thu, 08 Jun 2023 23:02:22 GMT</text></g><g id="g14"><text x="0" textLength="48" class="color6">Server</text><text x="48" textLength="136" class="foreground">: gunicorn/19.9.0</text></g><g id="g15"><text x="0" textLength="8" class="foreground">{</text></g><g id="g16"><text x="0" textLength="32" class="color7">    </text><text x="32" textLength="48" class="color12">"args"</text><text x="80" textLength="8" class="foreground">:</text><text x="88" textLength="8" class="color7"> </text><text x="96" textLength="8" class="foreground">{</text></g><g id="g17"><text x="0" textLength="64" class="color7">        </text><text x="64" textLength="80" class="color12">"show_env"</text><text x="144" textLength="8" class="foreground">:</text><text x="152" textLength="8" class="color7"> </text><text x="160" textLength="16" class="color3">""</text></g><g id="g18"><text x="0" textLength="32" class="color7">    </text><text x="32" textLength="16" class="foreground">},</text></g><g id="g19"><text x="0" textLength="32" class="color7">    </text><text x="32" textLength="72" class="color12">"headers"</text><text x="104" textLength="8" class="foreground">:</text><text x="112" textLength="8" class="color7"> </text><text x="120" textLength="8" class="foreground">{</text></g><g id="g20"><text x="0" textLength="64" class="color7">        </text><text x="64" textLength="64" class="color12">"Accept"</text><text x="128" textLength="8" class="foreground">:</text><text x="136" textLength="8" class="color7"> </text><text x="144" textLength="40" class="color3">"*/*"</text><text x="184" textLength="8" class="foreground">,</text></g><g id="g21"><text x="0" textLength="64" class="color7">        </text><text x="64" textLength="136" class="color12">"Accept-Encoding"</text><text x="200" textLength="8" class="foreground">:</text><text x="208" textLength="8" class="color7"> </text><text x="216" textLength="152" class="color3">"gzip, deflate, br"</text><text x="368" textLength="8" class="foreground">,</text></g><g id="g22"><text x="0" textLength="64" class="color7">        </text><text x="64" textLength="48" class="color12">"Host"</text><text x="112" textLength="8" class="foreground">:</text><text x="120" textLength="8" class="color7"> </text><text x="128" textLength="104" class="color3">"httpbin.org"</text><text x="232" textLength="8" class="foreground">,</text></g><g id="g23"><text x="0" textLength="64" class="color7">        </text><text x="64" textLength="96" class="color12">"User-Agent"</text><text x="160" textLength="8" class="foreground">:</text><text x="168" textLength="8" class="color7"> </text><text x="176" textLength="112" class="color3">"HTTPie/3.2.2"</text><text x="288" textLength="8" class="foreground">,</text></g><g id="g24"><text x="0" textLength="64" class="color7">        </text><text x="64" textLength="136" class="color12">"X-Amzn-Trace-Id"</text><text x="200" textLength="8" class="foreground">:</text><text x="208" textLength="8" class="color7"> </text><text x="216" textLength="336" class="color3">"Root=1-64825dfd-6f77301b5df12ff01b581aa2"</text><text x="552" textLength="8" class="foreground">,</text></g><g id="g25"><text x="0" textLength="64" class="color7">        </text><text x="64" textLength="136" class="color12">"X-Forwarded-For"</text><text x="200" textLength="8" class="foreground">:</text><text x="208" textLength="8" class="color7"> </text><text x="216" textLength="16" class="color3">"8</text><text x="232" textLength="8" class="background"> </text></g><g id="g26"><text x="0" textLength="64" class="color7">        </text><text x="64" textLength="136" class="color12">"X-Forwarded-For"</text><text x="200" textLength="8" class="foreground">:</text><text x="208" textLength="8" class="color7"> </text><text x="216" textLength="112" class="color3">"8.219.64.236"</text><text x="328" textLength="8" class="foreground">,</text></g><g id="g27"><text x="0" textLength="64" class="color7">        </text><text x="64" textLength="144" class="color12">"X-Forwarded-Port"</text><text x="208" textLength="8" class="foreground">:</text><text x="216" textLength="8" class="color7"> </text><text x="224" textLength="40" class="color3">"443"</text><text x="264" textLength="8" class="foreground">,</text></g><g id="g28"><text x="0" textLength="64" class="color7">        </text><text x="64" textLength="152" class="color12">"X-Forwarded-Proto"</text><text x="216" textLength="8" class="foreground">:</text><text x="224" textLength="8" class="color7"> </text><text x="232" textLength="56" class="color3">"https"</text></g><g id="g29"><text x="0" textLength="32" class="color7">    </text><text x="32" textLength="64" class="color12">"origin"</text><text x="96" textLength="8" class="foreground">:</text><text x="104" textLength="8" class="color7"> </text><text x="112" textLength="112" class="color3">"8.219.64.236"</text><text x="224" textLength="8" class="foreground">,</text></g><g id="g30"><text x="0" textLength="32" class="color7">    </text><text x="32" textLength="40" class="color12">"url"</text><text x="72" textLength="8" class="foreground">:</text><text x="80" textLength="8" class="color7"> </text><text x="88" textLength="272" class="color3">"https://httpbin.org/get?show_env"</text></g><g id="g31"><text x="0" textLength="8" class="foreground">}</text></g></defs><g id="screen_view"><g><use xlink:href="#g1" y="0"/><rect x="0" y="17" width="8" height="17" class="foreground"/><use xlink:href="#g2" y="17"/></g><g><use xlink:href="#g1" y="612"/><use xlink:href="#g3" y="629"/><rect x="0" y="646" width="8" height="17" class="foreground"/><use xlink:href="#g2" y="646"/></g><g><use xlink:href="#g1" y="1224"/><use xlink:href="#g3" y="1241"/><rect x="136" y="1258" width="8" height="17" class="color2"/><use xlink:href="#g4" y="1258"/></g><g><use xlink:href="#g1" y="1836"/><use xlink:href="#g3" y="1853"/><use xlink:href="#g5" y="1870"/><use xlink:href="#g6" y="1887"/><rect x="0" y="1904" width="8" height="17" class="foreground"/><use xlink:href="#g2" y="1904"/></g><g><use xlink:href="#g1" y="2448"/><use xlink:href="#g3" y="2465"/><use xlink:href="#g5" y="2482"/><use xlink:href="#g6" y="2499"/><use xlink:href="#g7" y="2516"/><use xlink:href="#g8" y="2533"/><use xlink:href="#g9" y="2550"/><use xlink:href="#g10" y="2567"/><use xlink:href="#g11" y="2584"/><use xlink:href="#g12" y="2601"/><use xlink:href="#g13" y="2618"/><use xlink:href="#g14" y="2635"/><rect x="0" y="2669" width="8" height="17" class="foreground"/><use xlink:href="#g2" y="2669"/></g><g><use xlink:href="#g1" y="3060"/><use xlink:href="#g3" y="3077"/><use xlink:href="#g5" y="3094"/><use xlink:href="#g6" y="3111"/><use xlink:href="#g7" y="3128"/><use xlink:href="#g8" y="3145"/><use xlink:href="#g9" y="3162"/><use xlink:href="#g10" y="3179"/><use xlink:href="#g11" y="3196"/><use xlink:href="#g12" y="3213"/><use xlink:href="#g13" y="3230"/><use xlink:href="#g14" y="3247"/><use xlink:href="#g15" y="3281"/><use xlink:href="#g16" y="3298"/><use xlink:href="#g17" y="3315"/><use xlink:href="#g18" y="3332"/><use xlink:href="#g19" y="3349"/><use xlink:href="#g20" y="3366"/><use xlink:href="#g21" y="3383"/><use xlink:href="#g22" y="3400"/><use xlink:href="#g23" y="3417"/><use xlink:href="#g24" y="3434"/><rect x="232" y="3451" width="8" height="17" class="color3"/><use xlink:href="#g25" y="3451"/></g><g><use xlink:href="#g1" y="3672"/><use xlink:href="#g3" y="3689"/><use xlink:href="#g5" y="3706"/><use xlink:href="#g6" y="3723"/><use xlink:href="#g7" y="3740"/><use xlink:href="#g8" y="3757"/><use xlink:href="#g9" y="3774"/><use xlink:href="#g10" y="3791"/><use xlink:href="#g11" y="3808"/><use xlink:href="#g12" y="3825"/><use xlink:href="#g13" y="3842"/><use xlink:href="#g14" y="3859"/><use xlink:href="#g15" y="3893"/><use xlink:href="#g16" y="3910"/><use xlink:href="#g17" y="3927"/><use xlink:href="#g18" y="3944"/><use xlink:href="#g19" y="3961"/><use xlink:href="#g20" y="3978"/><use xlink:href="#g21" y="3995"/><use xlink:href="#g22" y="4012"/><use xlink:href="#g23" y="4029"/><use xlink:href="#g24" y="4046"/><use xlink:href="#g26" y="4063"/><use xlink:href="#g27" y="4080"/><use xlink:href="#g28" y="4097"/><use xlink:href="#g18" y="4114"/><use xlink:href="#g29" y="4131"/><use xlink:href="#g30" y="4148"/><use xlink:href="#g31" y="4165"/><rect x="0" y="4216" width="8" height="17" class="foreground"/><use xlink:href="#g2" y="4216"/></g></g></svg>
+</svg>

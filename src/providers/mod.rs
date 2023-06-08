@@ -14,7 +14,7 @@ use tokio::{spawn, task::JoinHandle};
 use crate::proxy::Proxy;
 
 lazy_static! {
-    pub static ref PROXIES: ConcurrentQueue<Proxy> = ConcurrentQueue::unbounded();
+    pub static ref PROXIES: ConcurrentQueue<Proxy> = ConcurrentQueue::bounded(500);
     pub static ref UNIQUE_PROXIES: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
 }
 

@@ -1,7 +1,11 @@
+use std::path::PathBuf;
+
 use clap::builder::PossibleValue;
 use clap::{Args, Parser, Subcommand};
 
 #[derive(Parser, Debug, Clone)]
+#[command(after_help = "Suggestions and bug reports are greatly appreciated:
+https://github.com/zevtyardt/proxy.rs/issues")]
 pub struct Cli {
     /// The maximum number of concurrent checks of proxies
     #[arg(long, default_value = "200")]
@@ -68,6 +72,7 @@ pub struct FindArgs {
             PossibleValue::new("HTTP"),
             PossibleValue::new("HTTPS"),
             PossibleValue::new("SOCKS4"),
+            PossibleValue::new("SOCKS5"),
         ]),
     )]
     pub types: Vec<String>,
@@ -100,4 +105,7 @@ pub struct FindArgs {
         ])
     )]
     pub format: String,
+    // Save found proxies to file. By default, output to console
+    //#[arg(short, long)]
+    //pub outfile: Option<PathBuf>,
 }

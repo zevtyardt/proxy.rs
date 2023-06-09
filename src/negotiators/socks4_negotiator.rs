@@ -25,9 +25,9 @@ impl Socks4Negotiator {
         if data.pack_to::<BigEndian, _>(&mut buf).is_err() {
             return false;
         }
-        let payload = buf.into_inner();
+        let packet = buf.into_inner();
 
-        proxy.send(payload.as_slice()).await;
+        proxy.send(packet.as_slice()).await;
 
         if let Some(data) = proxy.recv(8).await {
             let mut data = data.as_slice();

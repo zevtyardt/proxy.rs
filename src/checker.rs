@@ -10,7 +10,7 @@ use crate::{
     judge::{get_judges, Judge},
     negotiators::{
         http_negotiator::HttpNegotiator, https_negotiator::HttpsNegotiator,
-        socks4_negotiator::Socks4Negotiator,
+        socks4_negotiator::Socks4Negotiator, socks5_negotiator::Socks5Negotiator,
     },
     proxy::Proxy,
     resolver::Resolver,
@@ -27,10 +27,17 @@ lazy_static! {
     static ref CV: Arc<Condvar> = Arc::new(Condvar::new());
 }
 
-pub async fn check_judges(ssl: bool, ext_ip: String, expected_types: Vec<String>) {
+pub async fn check_judges(ssl: bool, ext_ip: String, mut expected_types: Vec<String>) {
     let stime = time::Instant::now();
     let mut tasks = vec![];
 
+    if !expected_types.contains(&"HTTP".to_string())
+        && ["CONNECT:80", "SOCKS4", "SOCKS5"]
+            .iter()
+            .any(|x| expected_types.contains(&x.to_string()))
+    {
+        expected_types.push("HTTP".to_string());
+    }
     for mut judge in get_judges() {
         let ssl = ssl;
         let ext_ip = ext_ip.clone();
@@ -118,7 +125,7 @@ pub struct Checker {
 
 impl Checker {
     pub async fn check_proxy(&mut self, proxy: &mut Proxy) -> bool {
-        let expected_types = vec_of_strings!["SOCKS4", "HTTPS", "HTTP"]; // proxy.expected_types.clone();
+        let expected_types = vec_of_strings!["SOCKS5", "SOCKS4", "HTTPS", "HTTP"]; // proxy.expected_types.clone();
 
         let mut result = vec![];
         for proto in &expected_types {
@@ -199,7 +206,14 @@ impl Checker {
         judge: &Judge,
         proto: &String,
     ) -> (bool, bool, bool) {
-        if proto == "SOCKS4" {
+        if proto == "SOCKS5" {
+            let negotiator = Socks5Negotiator::default();
+            (
+                negotiator.negotiate(proxy).await,
+                negotiator.use_full_path,
+                negotiator.check_anon_lvl,
+            )
+        } else if proto == "SOCKS4" {
             let negotiator = Socks4Negotiator::default();
             (
                 negotiator.negotiate(proxy).await,
@@ -350,7 +364,7 @@ impl Checker {
             expected_countries: vec![],
             expected_levels: vec![],
             ip_re: Regex::new(r#"\d+\.\d+\.\d+\.\d+"#).unwrap(),
-            ext_ip: resolver.get_real_ext_ip().await.unwrap(),
+            ext_ip: resolver.get_real_ext_ip().await,
         }
     }
 }

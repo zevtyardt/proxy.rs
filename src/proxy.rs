@@ -255,7 +255,7 @@ impl Proxy {
         let stream = self.tcp_stream.as_mut().unwrap();
         match stream.write_all(body).await {
             Ok(_) => self.log(
-                format!("Sending {} bytes", body.len()).as_str(),
+                format!("Sending {} bytes: {:?}", body.len(), body).as_str(),
                 Some(stime.elapsed()),
                 None,
             ),
@@ -283,7 +283,7 @@ impl Proxy {
                 Ok(buf_size) => {
                     if buf_size > 0 {
                         self.log(
-                            format!("Received {} bytes", buf_size).as_str(),
+                            format!("Received {} bytes: {:?}", buf_size, chunk).as_str(),
                             Some(stime.elapsed()),
                             None,
                         );
@@ -347,7 +347,7 @@ impl Proxy {
             }
         }
         self.log(
-            format!("Received {} bytes", buf.len()).as_str(),
+            format!("Received {} bytes: {:?}", buf.len(), buf).as_str(),
             Some(stime.elapsed()),
             None,
         );
@@ -394,7 +394,12 @@ impl Proxy {
         let stime_send = Instant::now();
         match tcp_stream.write_all(connect_payload).await {
             Ok(_) => self.log(
-                format!("Sending {} bytes", connect_payload.len()).as_str(),
+                format!(
+                    "Sending {} bytes: {:?}",
+                    connect_payload.len(),
+                    connect_payload
+                )
+                .as_str(),
                 Some(stime_send.elapsed()),
                 None,
             ),
@@ -421,7 +426,7 @@ impl Proxy {
                 Ok(buf_size) => {
                     if buf_size > 0 {
                         self.log(
-                            format!("Received {} bytes", buf_size).as_str(),
+                            format!("Received {} bytes: {:?}", buf_size, chunk).as_str(),
                             Some(stime_recv.elapsed()),
                             None,
                         );
@@ -498,7 +503,7 @@ impl Proxy {
         let stream = self.tls_stream.as_mut().unwrap();
         match stream.write_all(body).await {
             Ok(_) => self.log(
-                format!("SSL: Sending {} bytes", body.len()).as_str(),
+                format!("SSL: Sending {} bytes: {:?}", body.len(), body).as_str(),
                 Some(stime.elapsed()),
                 None,
             ),
@@ -526,7 +531,7 @@ impl Proxy {
                 Ok(buf_size) => {
                     if buf_size > 0 {
                         self.log(
-                            format!("SSL: Received {} bytes", buf_size).as_str(),
+                            format!("SSL: Received {} bytes: {:?}", buf_size, chunk).as_str(),
                             Some(stime.elapsed()),
                             None,
                         );
@@ -590,7 +595,7 @@ impl Proxy {
             }
         }
         self.log(
-            format!("SSL: Received {} bytes", buf.len()).as_str(),
+            format!("SSL: Received {} bytes: {:?}", buf.len(), buf).as_str(),
             Some(stime.elapsed()),
             None,
         );

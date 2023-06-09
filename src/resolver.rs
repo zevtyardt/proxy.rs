@@ -139,7 +139,7 @@ impl Resolver {
         host
     }
 
-    pub async fn get_real_ext_ip(&self) -> Option<String> {
+    pub async fn get_real_ext_ip(&self) -> String {
         for ext_ip_host in EXT_IP_HOSTS.iter() {
             match reqwest::get(ext_ip_host).await {
                 Ok(response) => match response.text().await {
@@ -147,7 +147,7 @@ impl Resolver {
                         let ip = body.trim();
                         if self.host_is_ip(ip) {
                             log::debug!("Ext ip ({}) retrieved using host: {}", ip, ext_ip_host);
-                            return Some(ip.to_string());
+                            return ip.to_string();
                         }
                     }
                     Err(e) => log::error!("{}", e),
@@ -155,6 +155,7 @@ impl Resolver {
                 Err(e) => log::error!("{}", e),
             }
         }
-        None
+
+        std::process::exit(0);
     }
 }

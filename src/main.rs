@@ -29,13 +29,14 @@ fn main() {
         "error" => log::LevelFilter::Error,
         _ => log::LevelFilter::Warn,
     };
-    let _ = SimpleLogger::new()
+    SimpleLogger::new()
         .with_level(log::LevelFilter::Off)
         .with_module_level("proxy_rs", log_level)
         .without_timestamps()
-        .init();
+        .init()
+        .unwrap();
 
-    log::info!("Start collecting proxies.. ",);
+    log::info!("Start collecting proxies.. ");
 
     tokio::runtime::Builder::new_multi_thread()
         .worker_threads(4)
@@ -118,15 +119,11 @@ fn main() {
                             print!("[")
                         }
                         loop {
-                            let mut proxies = Vec::with_capacity(5000);
+                            let mut proxies = Vec::new();
                             while let Ok((host, port, expected_types)) = providers::PROXIES.pop() {
                                 if let Some(mut proxy) =
                                     proxy::Proxy::create(host.as_str(), port, expected_types).await
                                 {
-                                    if proxies.len() >= 5000 {
-                                        break;
-                                    }
-
                                     let mut checker_clone = checker.clone();
                                     let counter = counter.clone();
                                     let limit = limit;

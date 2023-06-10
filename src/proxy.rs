@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, net::IpAddr, time::Duration};
+use std::{collections::BTreeMap, net::IpAddr, str::from_utf8, time::Duration};
 
 use native_tls::TlsConnector;
 use tokio::{
@@ -15,6 +15,16 @@ use crate::{
         serializer::{Country, Geo, ProxyData, ProxyType, Region},
     },
 };
+
+fn bytes_to_string(bytes: &[u8]) -> String {
+    match from_utf8(bytes) {
+        Ok(s) => format!("{:?}", s),
+        Err(_) => {
+            let v: Vec<String> = bytes.into_iter().map(|n| format!("{:02x}", n)).collect();
+            format!("\"\\x{}\"", v.join("\\x"))
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct Proxy {
@@ -255,7 +265,7 @@ impl Proxy {
         let stream = self.tcp_stream.as_mut().unwrap();
         match stream.write_all(body).await {
             Ok(_) => self.log(
-                format!("Sending {} bytes: {:?}", body.len(), body).as_str(),
+                format!("Sending {} bytes: {}", body.len(), bytes_to_string(body)).as_str(),
                 Some(stime.elapsed()),
                 None,
             ),
@@ -283,7 +293,12 @@ impl Proxy {
                 Ok(buf_size) => {
                     if buf_size > 0 {
                         self.log(
-                            format!("Received {} bytes: {:?}", buf_size, chunk).as_str(),
+                            format!(
+                                "Received {} bytes: {}",
+                                buf_size,
+                                bytes_to_string(&chunk[..buf_size])
+                            )
+                            .as_str(),
                             Some(stime.elapsed()),
                             None,
                         );
@@ -347,7 +362,12 @@ impl Proxy {
             }
         }
         self.log(
-            format!("Received {} bytes: {:?}", buf.len(), buf).as_str(),
+            format!(
+                "Received {} bytes: {}",
+                buf.len(),
+                bytes_to_string(buf.as_slice())
+            )
+            .as_str(),
             Some(stime.elapsed()),
             None,
         );
@@ -395,9 +415,9 @@ impl Proxy {
         match tcp_stream.write_all(connect_payload).await {
             Ok(_) => self.log(
                 format!(
-                    "Sending {} bytes: {:?}",
+                    "Sending {} bytes: {}",
                     connect_payload.len(),
-                    connect_payload
+                    bytes_to_string(connect_payload)
                 )
                 .as_str(),
                 Some(stime_send.elapsed()),
@@ -426,7 +446,12 @@ impl Proxy {
                 Ok(buf_size) => {
                     if buf_size > 0 {
                         self.log(
-                            format!("Received {} bytes: {:?}", buf_size, chunk).as_str(),
+                            format!(
+                                "Received {} bytes: {}",
+                                buf_size,
+                                bytes_to_string(&chunk[..buf_size])
+                            )
+                            .as_str(),
                             Some(stime_recv.elapsed()),
                             None,
                         );
@@ -503,7 +528,12 @@ impl Proxy {
         let stream = self.tls_stream.as_mut().unwrap();
         match stream.write_all(body).await {
             Ok(_) => self.log(
-                format!("SSL: Sending {} bytes: {:?}", body.len(), body).as_str(),
+                format!(
+                    "SSL: Sending {} bytes: {}",
+                    body.len(),
+                    bytes_to_string(body)
+                )
+                .as_str(),
                 Some(stime.elapsed()),
                 None,
             ),
@@ -531,7 +561,12 @@ impl Proxy {
                 Ok(buf_size) => {
                     if buf_size > 0 {
                         self.log(
-                            format!("SSL: Received {} bytes: {:?}", buf_size, chunk).as_str(),
+                            format!(
+                                "SSL: Received {} bytes: {}",
+                                buf_size,
+                                bytes_to_string(&chunk[..buf_size])
+                            )
+                            .as_str(),
                             Some(stime.elapsed()),
                             None,
                         );
@@ -595,7 +630,12 @@ impl Proxy {
             }
         }
         self.log(
-            format!("SSL: Received {} bytes: {:?}", buf.len(), buf).as_str(),
+            format!(
+                "SSL: Received {} bytes: {}",
+                buf.len(),
+                bytes_to_string(buf.as_slice())
+            )
+            .as_str(),
             Some(stime.elapsed()),
             None,
         );

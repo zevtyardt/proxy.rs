@@ -52,8 +52,8 @@ pub struct GrabArgs {
     pub countries: Vec<String>,
 
     /// The maximum number of working proxies
-    #[arg(short, long)]
-    pub limit: Option<usize>,
+    #[arg(short, long, default_value = "0")]
+    pub limit: usize,
 
     /// Flag indicating in what format the results will be presented.
     #[arg(short, long,
@@ -82,6 +82,10 @@ pub struct FindArgs {
     )]
     pub types: Vec<String>,
 
+    /// Path to the file with proxies. If specified, used instead of providers
+    #[arg(long, num_args(1..))]
+    pub files: Vec<std::path::PathBuf>,
+
     /// Level(s) of anonymity (for HTTP only). By default, any level
     #[arg(long, num_args(1..),
         value_parser([
@@ -97,8 +101,8 @@ pub struct FindArgs {
     pub countries: Vec<String>,
 
     /// The maximum number of working proxies
-    #[arg(short, long)]
-    pub limit: Option<usize>,
+    #[arg(short, long, default_value = "0")]
+    pub limit: usize,
 
     /// Flag indicating in what format the results will be presented.
     #[arg(short, long,

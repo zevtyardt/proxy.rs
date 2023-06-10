@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use clap::builder::PossibleValue;
 use clap::{Args, Parser, Subcommand};
 
@@ -35,6 +33,8 @@ pub struct Cli {
 }
 
 #[derive(Subcommand, Debug, Clone)]
+#[command(after_help = "Suggestions and bug reports are greatly appreciated:
+https://github.com/zevtyardt/proxy.rs/issues")]
 pub enum Commands {
     /// Find proxies without a checks
     Grab(GrabArgs),
@@ -44,6 +44,8 @@ pub enum Commands {
 }
 
 #[derive(Args, Debug, Clone)]
+#[command(after_help = "Suggestions and bug reports are greatly appreciated:
+https://github.com/zevtyardt/proxy.rs/issues")]
 pub struct GrabArgs {
     /// List of ISO country codes where should be located proxies
     #[arg(short, long, num_args(1..))]
@@ -64,7 +66,10 @@ pub struct GrabArgs {
     )]
     pub format: String,
 }
+
 #[derive(Args, Debug, Clone)]
+#[command(after_help = "Suggestions and bug reports are greatly appreciated:
+https://github.com/zevtyardt/proxy.rs/issues")]
 pub struct FindArgs {
     /// Type(s) (protocols) that need to be check on support by proxy
     #[arg(long, required = true, num_args(1..),
@@ -107,5 +112,5 @@ pub struct FindArgs {
     pub format: String,
     // Save found proxies to file. By default, output to console
     //#[arg(short, long)]
-    //pub outfile: Option<PathBuf>,
+    //pub outfile: Option<std::path::PathBuf>,
 }

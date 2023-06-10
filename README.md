@@ -31,9 +31,9 @@ $ cargo install --git https://github.com/zevtyardt/proxy.rs
 ## Examples
 
 #### find
-Find and show 10 HTTP(S) proxies from EU (European Union) with the high level of anonymity:
+Find and show 10 HTTP(S) proxies from ID (Indonesia) with the high level of anonymity:
 ```bash
-$ proxy-rs find --types HTTP HTTPS -l 10 --levels High --countries EU
+$ proxy-rs find --types HTTP HTTPS -l 10 --levels High --countries ID
 ```
 ![](./images/find.svg)
 

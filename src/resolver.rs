@@ -82,15 +82,15 @@ impl Resolver {
                         geodata.name = country_name.to_string();
                     }
                 }
-            }
-
-            if let Some(continent) = &lookup.continent {
-                if let Some(continent_iso_code) = &continent.code {
-                    geodata.iso_code = continent_iso_code.to_string()
-                }
-                if let Some(continent_names) = &continent.names {
-                    if let Some(continent_name) = continent_names.get("en") {
-                        geodata.name = continent_name.to_string();
+            } else {
+                if let Some(continent) = &lookup.continent {
+                    if let Some(continent_iso_code) = &continent.code {
+                        geodata.iso_code = continent_iso_code.to_string()
+                    }
+                    if let Some(continent_names) = &continent.names {
+                        if let Some(continent_name) = continent_names.get("en") {
+                            geodata.name = continent_name.to_string();
+                        }
                     }
                 }
             }

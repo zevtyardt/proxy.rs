@@ -25,7 +25,7 @@ Proxy.rs is a high-speed proxy tool built with Rust, featuring two main function
 or install directly using the command
 
 ```bash
-$ cargo install --git https://github.com/zevtyardt/proxy.rs
+cargo install --git https://github.com/zevtyardt/proxy.rs
 ```
 
 ## Examples
@@ -33,7 +33,7 @@ $ cargo install --git https://github.com/zevtyardt/proxy.rs
 #### find
 Find and show 10 HTTP(S) proxies from ID (Indonesia) with the high level of anonymity:
 ```bash
-$ proxy-rs find --types HTTP HTTPS -l 10 --levels High --countries ID
+proxy-rs find --types HTTP HTTPS -l 10 --levels High --countries ID
 ```
 ![](./images/find.svg)
 

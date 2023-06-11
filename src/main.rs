@@ -44,6 +44,8 @@ const EOF_MSG: &str = "==EOF==";
 async fn handle_grab_command(args: GrabArgs, tx: UnboundedSender<String>) {
     let format = args.format;
     let limit = args.limit;
+    let expected_countries = args.countries;
+
     let mut counter = 1;
     let mut stop = false;
 
@@ -57,6 +59,9 @@ async fn handle_grab_command(args: GrabArgs, tx: UnboundedSender<String>) {
                 break;
             }
             if let Some(proxy) = proxy::Proxy::create(host.as_str(), port, expected_types).await {
+                if !expected_countries.contains(&proxy.geo.iso_code) {
+                    continue;
+                }
                 counter += 1;
                 let mut msg = String::new();
                 msg.push_str(

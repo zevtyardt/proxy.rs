@@ -8,11 +8,11 @@ Proxy.rs is a high-speed proxy tool built with Rust, featuring two main function
 ## Preview
 ![Proxy.rs Preview](./images/preview.svg)
 
-## Installation and Usage
+## Installation
 
 - Install Rust and Cargo.
 - Install Git.
-- Clone the Proxy.rs repository by running the following command in your terminal:
+- Clone this repository by running the command:
   ```bash
   git clone https://github.com/zevtyardt/proxy.rs.git
   ```
@@ -20,7 +20,7 @@ Proxy.rs is a high-speed proxy tool built with Rust, featuring two main function
   ```bash
   cd proxy.rs
   ```
-- Run `cargo run` to build and execute Proxy.rs.
+- Run `cargo install --path .` to install.
 
 or install directly using the command
 
@@ -30,7 +30,7 @@ cargo install --git https://github.com/zevtyardt/proxy.rs
 
 ## Examples
 
-#### find
+**find**
 Find and show 10 HTTP(S) proxies from ID (Indonesia) with the high level of anonymity:
 ```bash
 proxy-rs find --types HTTP HTTPS -l 10 --levels High --countries ID
@@ -42,6 +42,7 @@ proxy-rs find --types HTTP HTTPS -l 10 --levels High --countries ID
 
 The following features are currently being worked on:
 
+- Feature to save proxy results into a file
 - Implementing proxy DNSBL (Domain Name System Blacklist) checking for enhanced security.
 - Improving the speed of the proxy checker for faster validation.
 - Added more providers

@@ -36,6 +36,16 @@ proxy-rs find --types HTTP HTTPS -l 10 --levels High --countries ID
 ```
 ![](./images/find.svg)
 
+**Options**
+- `--types <TYPES>...`: Type(s) (protocols) to check for proxy support. Possible values: HTTP, HTTPS, SOCKS4, SOCKS5.
+- `--files <FILES>...`: Path to the file with proxies. If specified, it is used instead of providers.
+- `--levels <LEVELS>...`: Level(s) of anonymity (for HTTP only). By default, any level. Possible values: Transparent, Anonymous, High.
+- `--support-cookies`: Flag indicating that the proxy must support cookies.
+- `--support-referer`: Flag indicating that the proxy must support referer.
+- `-c, --countries <COUNTRIES>...`: List of ISO country codes where the proxies should be located.
+- `-l, --limit <LIMIT>`: The maximum number of working proxies. Default: 0.
+- `-f, --format <FORMAT>`: The format in which the results will be presented. Default: default. Possible values: default, text, json.
+- `-o, --outfile <OUTFILE>`: Save found proxies to a file. By default, the output is displayed on the console.
 
 ## Currently Under Development
 

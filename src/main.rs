@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 //#![allow(unused_variables)]
-//#![allow(unused_imports)]
+#![allow(unused_imports)]
 //#![allow(unreachable_code)]
 
 use argument::{FindArgs, GrabArgs};
@@ -11,11 +11,13 @@ use parking_lot::Mutex;
 use proxy::Proxy;
 use regex::Regex;
 use simple_logger::SimpleLogger;
-use std::{path::PathBuf, process, sync::Arc, time::Duration};
+use std::{path::PathBuf, pin::Pin, process, sync::Arc, time::Duration};
 use tokio::{
-    fs,
-    io::{AsyncBufReadExt, BufReader},
-    runtime, task, time,
+    fs::File,
+    io::{stdout, AsyncBufReadExt, AsyncWrite, AsyncWriteExt, BufReader},
+    runtime,
+    sync::mpsc::{self, UnboundedSender},
+    task, time,
 };
 
 use crate::{
@@ -37,81 +39,109 @@ lazy_static! {
     static ref STOP_FIND_LOOP: Arc<Mutex<bool>> = Arc::new(Mutex::new(false));
 }
 
-async fn handle_grab_command(args: GrabArgs) {
-    println!("{:#?}", args);
+const EOF_MSG: &str = "==EOF==";
+
+async fn handle_grab_command(args: GrabArgs, tx: UnboundedSender<String>) {
     let format = args.format;
     let limit = args.limit;
     let mut counter = 1;
+    let mut stop = false;
 
     if format == "json" {
-        print!("[");
+        tx.send("[".to_string()).unwrap();
     }
 
-    loop {
+    while !stop {
         while let Ok((host, port, expected_types)) = PROXIES.pop() {
+            if stop {
+                break;
+            }
             if let Some(proxy) = proxy::Proxy::create(host.as_str(), port, expected_types).await {
                 counter += 1;
-                match format.as_str() {
-                    "text" => print!("{}", proxy.as_text()),
-                    "json" => print!("{}", proxy.as_json()),
-                    _ => print!("{}", proxy),
-                }
+                let mut msg = String::new();
+                msg.push_str(
+                    match format.as_str() {
+                        "text" => proxy.as_text(),
+                        "json" => proxy.as_json(),
+                        _ => format!("{}", proxy),
+                    }
+                    .as_str(),
+                );
 
                 if limit != 0 && counter > limit {
-                    println!("{}", if format == "json" { "]" } else { "" });
-                    process::exit(0)
+                    msg.push_str(if format == "json" { "]" } else { "" });
+                    stop = true;
                 } else if format == "json" {
-                    print!(",");
+                    msg.push(',')
                 }
-                println!()
+                msg.push('\n');
+                tx.send(msg).unwrap()
             }
         }
     }
+    tx.send(EOF_MSG.to_string()).unwrap();
 }
 
-async fn handle_find_command(mut checker: Checker, args: FindArgs, max_conn: usize) {
+async fn handle_find_command(
+    mut checker: Checker,
+    args: FindArgs,
+    max_conn: usize,
+    tx: UnboundedSender<String>,
+) {
     // config
     let format = args.format;
     let limit = args.limit;
-    let counter = Arc::new(Mutex::new(1));
 
     checker.expected_types = args.types;
     checker.expected_levels = args.levels;
     checker.expected_countries = args.countries;
 
+    let counter = Arc::new(Mutex::new(1));
+
     if format == "json" {
-        print!("[")
+        tx.send("[".to_string()).unwrap();
     }
 
     while !*STOP_FIND_LOOP.lock() {
-        let mut proxies = Vec::new();
+        let mut proxies = Vec::with_capacity(5000);
         while let Ok((host, port, expected_types)) = PROXIES.pop() {
+            if proxies.len() >= 5000 {
+                break;
+            }
             if let Some(mut proxy) = Proxy::create(host.as_str(), port, expected_types).await {
                 let mut checker_clone = checker.clone();
                 let counter = counter.clone();
                 let limit = limit;
                 let format = format.clone();
+                let tx = tx.clone();
                 proxies.push(task::spawn(async move {
                     if checker_clone.check_proxy(&mut proxy).await {
                         let mut counter = counter.lock();
                         *counter += 1;
 
-                        match format.as_str() {
-                            "text" => print!("{}", proxy.as_text()),
-                            "json" => print!("{}", proxy.as_json()),
-                            _ => print!("{}", proxy),
-                        }
-                        if limit != 0 && *counter > limit {
-                            if format == "json" {
-                                println!("]");
-                            } else {
-                                println!()
+                        let mut msg = String::new();
+                        msg.push_str(
+                            match format.as_str() {
+                                "text" => proxy.as_text(),
+                                "json" => proxy.as_json(),
+                                _ => format!("{}", proxy),
                             }
-                            process::exit(0)
+                            .as_str(),
+                        );
+
+                        let end = limit != 0 && *counter > limit;
+                        if end {
+                            msg.push_str(if format == "json" { "]" } else { "" });
+                            let mut stop_file_loop = STOP_FIND_LOOP.lock();
+                            *stop_file_loop = true;
                         } else if format == "json" {
-                            print!(",");
+                            msg.push(',');
                         }
-                        println!()
+                        msg.push('\n');
+                        tx.send(msg).unwrap();
+                        if end {
+                            tx.send(EOF_MSG.to_string()).unwrap()
+                        }
                     }
                 }));
             }
@@ -131,7 +161,7 @@ async fn handle_find_command(mut checker: Checker, args: FindArgs, max_conn: usi
 
 async fn handle_file_input(files: Vec<PathBuf>) {
     for file in files {
-        match fs::File::open(&file).await {
+        match File::open(&file).await {
             Ok(file) => {
                 let ip_port = Regex::new(r#"(?P<ip>(?:\d+\.?){4}):(?P<port>\d+)"#).unwrap();
                 let buffer = BufReader::new(file);
@@ -161,6 +191,7 @@ fn main() {
         "error" => log::LevelFilter::Error,
         _ => log::LevelFilter::Warn,
     };
+
     SimpleLogger::new()
         .with_level(log::LevelFilter::Off)
         .with_module_level("proxy_rs", log_level)
@@ -183,15 +214,25 @@ fn main() {
             let timeout = cli.timeout as i32;
 
             let mut files = vec![];
+            let (tx, mut rx) = mpsc::unbounded_channel();
+            let outfile;
 
             match cli.sub {
                 Commands::Grab(grab_args) => {
-                    tasks.push(task::spawn(handle_grab_command(grab_args)))
+                    outfile = grab_args.outfile.clone();
+
+                    let tx = tx.clone();
+                    tasks.push(task::spawn(handle_grab_command(grab_args, tx)))
                 }
                 Commands::Find(find_args) => {
+                    outfile = find_args.outfile.clone();
+
                     let mut checker = Checker::new().await;
                     checker.max_tries = max_tries;
                     checker.timeout = timeout;
+                    checker.support_cookie = find_args.support_cookies;
+                    checker.support_referer = find_args.support_referer;
+
                     let ext_ip = checker.ext_ip.clone();
 
                     let expected_types = find_args.types.clone();
@@ -201,8 +242,10 @@ fn main() {
                     }));
 
                     files.extend(find_args.files.clone());
+
+                    let tx = tx.clone();
                     tasks.push(task::spawn(handle_find_command(
-                        checker, find_args, max_conn,
+                        checker, find_args, max_conn, tx,
                     )));
                 }
             }
@@ -224,6 +267,19 @@ fn main() {
                 }));
             }
 
-            run_parallel::<()>(tasks, None).await;
+            let mut output: Pin<Box<dyn AsyncWrite>> = if let Some(path) = outfile {
+                let file = File::create(path).await.unwrap();
+                Box::pin(file)
+            } else {
+                Box::pin(stdout())
+            };
+
+            while let Some(msg) = rx.recv().await {
+                if msg == EOF_MSG {
+                    break;
+                }
+                output.write_all(msg.as_bytes()).await.unwrap();
+            }
+            std::process::exit(0);
         });
 }

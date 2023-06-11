@@ -65,6 +65,10 @@ pub struct GrabArgs {
         ])
     )]
     pub format: String,
+
+    /// Save found proxies to file. By default, output to console
+    #[arg(short, long)]
+    pub outfile: Option<std::path::PathBuf>,
 }
 
 #[derive(Args, Debug, Clone)]
@@ -96,6 +100,14 @@ pub struct FindArgs {
     )]
     pub levels: Vec<String>,
 
+    /// Flag indicating that the proxy must support cookies
+    #[arg(long, default_value = "false")]
+    pub support_cookies: bool,
+
+    /// Flag indicating that the proxy must support referer
+    #[arg(long, default_value = "false")]
+    pub support_referer: bool,
+
     /// List of ISO country codes where should be located proxies
     #[arg(short, long, num_args(1..))]
     pub countries: Vec<String>,
@@ -114,7 +126,8 @@ pub struct FindArgs {
         ])
     )]
     pub format: String,
-    // Save found proxies to file. By default, output to console
-    //#[arg(short, long)]
-    //pub outfile: Option<std::path::PathBuf>,
+
+    /// Save found proxies to file. By default, output to console
+    #[arg(short, long)]
+    pub outfile: Option<std::path::PathBuf>,
 }

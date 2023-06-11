@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" id="terminal" baseProfile="full" viewBox="0 0 687 421" width="687" version="1.1">
+    <defs>
+        <termtosvg:template_settings xmlns:termtosvg="https://github.com/nbedos/termtosvg">
+            <termtosvg:screen_geometry columns="80" rows="20"/>
+            <termtosvg:animation type="css"/>
+        </termtosvg:template_settings>
+        <style type="text/css" id="generated-style"><![CDATA[#screen {
+                font-family: 'DejaVu Sans Mono', monospace;
+                font-style: normal;
+                font-size: 14px;
+            }
+
+        text {
+            dominant-baseline: text-before-edge;
+            white-space: pre;
+        }
+    
+            :root {
+                --animation-duration: 4815ms;
+            }
+
+            @keyframes roll {
+                0.000%{transform:translateY(0px)}
+78.775%{transform:translateY(-374px)}
+79.232%{transform:translateY(-748px)}
+100.000%{transform:translateY(-748px)}
+            }
+
+            #screen_view {
+                animation-duration: 4815ms;
+                animation-iteration-count:infinite;
+                animation-name:roll;
+                animation-timing-function: steps(1,end);
+                animation-fill-mode: forwards;
+            }
+        ]]></style>
+        <style type="text/css" id="user-style">
+            /* The colors defined below are the default 16 colors used for rendering text of the terminal. Adjust
+               them as needed.
+               gjm8 color theme (source: https://terminal.sexy/) */
+            .foreground {fill: #f8f8f2}
+            .background {fill: #272822}
+            .color0 {fill: #272822}
+            .color1 {fill: #f92672}
+            .color2 {fill: #a6e22e}
+            .color3 {fill: #f4bf75}
+            .color4 {fill: #66d9ef}
+            .color5 {fill: #ae81ff}
+            .color6 {fill: #a1efe4}
+            .color7 {fill: #f8f8f2}
+            .color8 {fill: #75715e}
+            .color9 {fill: #fd971f}
+            .color10 {fill: #383830}
+            .color11 {fill: #49483e}
+            .color12 {fill: #a59f85}
+            .color13 {fill: #f5f4f1}
+            .color14 {fill: #cc6633}
+            .color15 {fill: #f9f8f5}
+        </style>
+    </defs>
+    <rect id="terminalui" class="background" width="100%" height="100%" ry="4.5826941"/>
+    <circle cx="24" cy="23" r="7" class="color1"/>
+    <circle cx="44" cy="23" r="7" class="color3"/>
+    <circle cx="64" cy="23" r="7" class="color2"/>
+    <svg id="screen" width="640" height="340" x="23" y="50" viewBox="0 0 640 340" preserveAspectRatio="xMidYMin slice"><rect class="background" height="100%" width="100%" x="0" y="0"/><defs><g id="g1"><text x="0" textLength="80" class="foreground">localhost </text><text x="80" textLength="40" class="color4">:: ~ </text><text x="120" textLength="80" class="color2">&#187; proxy-rs</text><text x="200" textLength="440" class="foreground"> grab --countries ID --limit 10 --outfile ./proxies.txt</text></g><g id="g2"><text x="0" textLength="8" class="background"> </text></g><g id="g3"><text x="0" textLength="80" class="foreground">localhost </text><text x="80" textLength="40" class="color4">:: ~ </text><text x="120" textLength="48" class="color2">&#187; cat </text><text x="168" textLength="112" class="foreground"> ./proxies.txt</text></g><g id="g4"><text x="0" textLength="320" class="foreground">&lt;Proxy ID 0.00s [] 103.174.179.158:1020&gt;</text></g><g id="g5"><text x="0" textLength="304" class="foreground">&lt;Proxy ID 0.00s [] 202.149.89.70:7999&gt;</text></g><g id="g6"><text x="0" textLength="320" class="foreground">&lt;Proxy ID 0.00s [] 103.174.179.145:1020&gt;</text></g><g id="g7"><text x="0" textLength="320" class="foreground">&lt;Proxy ID 0.00s [] 103.174.179.149:1020&gt;</text></g><g id="g8"><text x="0" textLength="296" class="foreground">&lt;Proxy ID 0.00s [] 36.68.22.142:8080&gt;</text></g><g id="g9"><text x="0" textLength="312" class="foreground">&lt;Proxy ID 0.00s [] 103.113.77.118:4145&gt;</text></g><g id="g10"><text x="0" textLength="304" class="foreground">&lt;Proxy ID 0.00s [] 103.113.3.234:4145&gt;</text></g><g id="g11"><text x="0" textLength="328" class="foreground">&lt;Proxy ID 0.00s [] 121.101.186.201:43296&gt;</text></g><g id="g12"><text x="0" textLength="296" class="foreground">&lt;Proxy ID 0.00s [] 182.23.36.82:4153&gt;</text></g></defs><g id="screen_view"><g><use xlink:href="#g1" y="0"/><rect x="0" y="17" width="8" height="17" class="foreground"/><use xlink:href="#g2" y="17"/></g><g><use xlink:href="#g1" y="374"/><use xlink:href="#g3" y="391"/><rect x="0" y="408" width="8" height="17" class="foreground"/><use xlink:href="#g2" y="408"/></g><g><use xlink:href="#g1" y="748"/><use xlink:href="#g3" y="765"/><use xlink:href="#g4" y="782"/><use xlink:href="#g5" y="799"/><use xlink:href="#g6" y="816"/><use xlink:href="#g7" y="833"/><use xlink:href="#g8" y="850"/><use xlink:href="#g9" y="867"/><use xlink:href="#g10" y="884"/><use xlink:href="#g11" y="901"/><use xlink:href="#g12" y="918"/><rect x="0" y="935" width="8" height="17" class="foreground"/><use xlink:href="#g2" y="935"/></g></g></svg>
+</svg>

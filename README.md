@@ -49,6 +49,20 @@ proxy-rs find --types HTTP HTTPS -l 10 --levels High --countries ID
 - `-f, --format <FORMAT>`: The format in which the results will be presented. Default: default. Possible values: default, text, json.
 - `-o, --outfile <OUTFILE>`: Save found proxies to a file. By default, the output is displayed on the console.
 
+### grab
+
+Find and save to a file 10 ID proxies (without a check):
+```bash
+proxy-rs grab --countries ID --limit 10 --outfile ./proxies.txt
+```
+![](./images/grab.svg)
+
+**Options**
+- `-c, --countries <COUNTRIES>...`: List of ISO country codes where the proxies should be located.
+- `-l, --limit <LIMIT>`: The maximum number of working proxies. Default: 0.
+- `-f, --format <FORMAT>`: The format in which the results will be presented. Default: default. Possible values: default, text, json.
+- `-o, --outfile <OUTFILE>`: Save found proxies to a file. By default, the output is displayed on the console.
+
 ## Currently Under Development
 
 The following features are currently being worked on:

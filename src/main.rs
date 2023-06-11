@@ -59,7 +59,9 @@ async fn handle_grab_command(args: GrabArgs, tx: UnboundedSender<String>) {
                 break;
             }
             if let Some(proxy) = proxy::Proxy::create(host.as_str(), port, expected_types).await {
-                if !expected_countries.contains(&proxy.geo.iso_code) {
+                if !expected_countries.is_empty()
+                    && !expected_countries.contains(&proxy.geo.iso_code)
+                {
                     continue;
                 }
                 counter += 1;
@@ -159,7 +161,10 @@ async fn handle_find_command(
                 "Finished checking {} proxies. Runtime {:?}",
                 ret.len(),
                 stime.elapsed()
-            )
+            );
+            if *STOP_FIND_LOOP.lock() {
+                tx.send(EOF_MSG.to_string()).unwrap()
+            }
         }
     }
 }

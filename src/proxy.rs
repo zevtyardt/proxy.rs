@@ -20,7 +20,7 @@ fn bytes_to_string(bytes: &[u8]) -> String {
     match from_utf8(bytes) {
         Ok(s) => format!("{:?}", s),
         Err(_) => {
-            let v: Vec<String> = bytes.into_iter().map(|n| format!("{:02x}", n)).collect();
+            let v: Vec<String> = bytes.iter().map(|n| format!("{:02x}", n)).collect();
             format!("\"\\x{}\"", v.join("\\x"))
         }
     }

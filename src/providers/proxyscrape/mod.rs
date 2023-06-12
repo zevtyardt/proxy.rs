@@ -1,3 +1,3 @@
-pub mod proxyscrape_http;
-pub mod proxyscrape_socks4;
-pub mod proxyscrape_socks5;
+pub mod http;
+pub mod socks4;
+pub mod socks5;

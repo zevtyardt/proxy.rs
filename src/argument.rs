@@ -36,7 +36,7 @@ pub struct Cli {
 #[command(after_help = "Suggestions and bug reports are greatly appreciated:
 https://github.com/zevtyardt/proxy.rs/issues")]
 pub enum Commands {
-    /// Find proxies without a checks
+    /// Find proxies without performing any checks
     Grab(GrabArgs),
 
     /// Find and check proxies

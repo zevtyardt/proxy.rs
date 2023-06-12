@@ -1,4 +1,4 @@
-pub mod proxyscan_http;
-pub mod proxyscan_https;
-pub mod proxyscan_socks4;
-pub mod proxyscan_socks5;
+pub mod http;
+pub mod https;
+pub mod socks4;
+pub mod socks5;

@@ -28,6 +28,22 @@ or install directly using the command
 cargo install --git https://github.com/zevtyardt/proxy.rs
 ```
 
+## Usage
+
+```
+Usage: proxy-rs [OPTIONS] <COMMAND>
+```
+
+**Commands**
+- `grab`: Find proxies without performing any checks.
+- `find`: Find and check proxies.
+
+**Options**
+- `--max-conn <MAX_CONN>`: The maximum number of concurrent checks of proxies. Default: 200.
+- `--max-tries <MAX_TRIES>`: The maximum number of attempts to check a proxy. Default: 1.
+- `-t, --timeout <TIMEOUT>`: Time in seconds before giving up. Default: 8.
+- `--log <LOG_LEVEL>`: Logging level. Default: warn. Possible values: debug, info, warn, error.
+
 ## Examples
 
 ### find

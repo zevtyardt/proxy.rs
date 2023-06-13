@@ -55,7 +55,7 @@ proxy-rs find --types HTTP HTTPS -l 10 --levels High --countries ID
 ![](./images/find.svg)
 
 **Options**
-- `--types <TYPES>...`: Type(s) (protocols) to check for proxy support. Possible values: HTTP, HTTPS, SOCKS4, SOCKS5.
+- `--types <TYPES>...`: Type(s) (protocols) to check for proxy support. Possible values: HTTP, HTTPS, SOCKS4, SOCKS5, CONNECT:80, CONNECT:25.
 - `--files <FILES>...`: Path to the file with proxies. If specified, it is used instead of providers.
 - `--levels <LEVELS>...`: Level(s) of anonymity (for HTTP only). By default, any level. Possible values: Transparent, Anonymous, High.
 - `--support-cookies`: Flag indicating that the proxy must support cookies.

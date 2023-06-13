@@ -82,6 +82,8 @@ pub struct FindArgs {
             PossibleValue::new("HTTPS"),
             PossibleValue::new("SOCKS4"),
             PossibleValue::new("SOCKS5"),
+            PossibleValue::new("CONNECT:80"),
+            PossibleValue::new("CONNECT:25"),
         ]),
     )]
     pub types: Vec<String>,

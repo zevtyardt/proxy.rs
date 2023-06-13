@@ -9,8 +9,8 @@ use tokio::{spawn, time};
 use crate::{
     judge::{get_judges, Judge},
     negotiators::{
-        http_negotiator::HttpNegotiator, https_negotiator::HttpsNegotiator,
-        socks4_negotiator::Socks4Negotiator, socks5_negotiator::Socks5Negotiator,
+        connect_25::Connect25Negotiator, connect_80::Connect80Negotiator, http::HttpNegotiator,
+        https::HttpsNegotiator, socks4::Socks4Negotiator, socks5::Socks5Negotiator,
     },
     proxy::Proxy,
     resolver::Resolver,
@@ -31,6 +31,12 @@ pub async fn check_judges(ssl: bool, ext_ip: String, mut expected_types: Vec<Str
     let stime = time::Instant::now();
     let mut tasks = vec![];
 
+    if !expected_types.contains(&"SMTP".to_string())
+        && expected_types.contains(&"CONNECT:25".to_string())
+    {
+        expected_types.push("SMTP".to_string());
+    }
+
     if !expected_types.contains(&"HTTP".to_string())
         && ["CONNECT:80", "SOCKS4", "SOCKS5"]
             .iter()
@@ -38,6 +44,7 @@ pub async fn check_judges(ssl: bool, ext_ip: String, mut expected_types: Vec<Str
     {
         expected_types.push("HTTP".to_string());
     }
+
     for mut judge in get_judges() {
         let ssl = ssl;
         let ext_ip = ext_ip.clone();
@@ -63,7 +70,7 @@ pub async fn check_judges(ssl: bool, ext_ip: String, mut expected_types: Vec<Str
         }))
     }
 
-    run_parallel::<()>(tasks, None).await;
+    run_parallel::<()>(tasks, Some(1)).await;
 
     let mut working = 0;
     let mut no_judges = vec![];
@@ -73,7 +80,7 @@ pub async fn check_judges(ssl: bool, ext_ip: String, mut expected_types: Vec<Str
             vec_of_strings!["HTTP", "CONNECT:80", "SOCKS4", "SOCKS5"],
         ),
         ("HTTPS", vec_of_strings!["HTTPS"]),
-        ("SMTP", vec_of_strings!["SMTP"]),
+        ("SMTP", vec_of_strings!["CONNECT:25"]),
     ] {
         if !expected_types.contains(&scheme.to_string()) {
             continue;
@@ -125,7 +132,14 @@ pub struct Checker {
 
 impl Checker {
     pub async fn check_proxy(&mut self, proxy: &mut Proxy) -> bool {
-        let expected_types = vec_of_strings!["SOCKS5", "SOCKS4", "HTTPS", "HTTP"]; // proxy.expected_types.clone();
+        let expected_types = vec_of_strings![
+            "CONNECT:80",
+            "CONNECT:25",
+            "SOCKS5",
+            "SOCKS4",
+            "HTTPS",
+            "HTTP"
+        ]; // proxy.expected_types.clone();
 
         let mut result = vec![];
         for proto in &expected_types {
@@ -172,6 +186,11 @@ impl Checker {
             return false;
         }
 
+        if proto == "CONNECT:25" {
+            proxy.types.push((proto.to_string(), None));
+            return true;
+        }
+
         let path = judge.url.path().to_string();
         let (raw_request, headers, rv) =
             self.build_raw_request(&judge.host, &path, use_full_path, None);
@@ -206,7 +225,21 @@ impl Checker {
         judge: &Judge,
         proto: &String,
     ) -> (bool, bool, bool) {
-        if proto == "SOCKS5" {
+        if proto == "CONNECT:25" {
+            let negotiator = Connect25Negotiator::default();
+            (
+                negotiator.negotiate(proxy, judge).await,
+                negotiator.use_full_path,
+                negotiator.check_anon_lvl,
+            )
+        } else if proto == "CONNECT:80" {
+            let negotiator = Connect80Negotiator::default();
+            (
+                negotiator.negotiate(proxy, judge).await,
+                negotiator.use_full_path,
+                negotiator.check_anon_lvl,
+            )
+        } else if proto == "SOCKS5" {
             let negotiator = Socks5Negotiator::default();
             (
                 negotiator.negotiate(proxy).await,

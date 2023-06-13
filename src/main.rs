@@ -43,50 +43,27 @@ const EOF_MSG: &str = "==EOF==";
 
 async fn handle_grab_command(args: GrabArgs, tx: UnboundedSender<String>) {
     let format = args.format;
-    let limit = args.limit;
     let expected_countries = args.countries;
 
-    let mut counter = 1;
-    let mut stop = false;
-
-    if format == "json" {
-        tx.send("[".to_string()).unwrap();
-    }
-
-    while !stop {
+    loop {
         while let Ok((host, port, expected_types)) = PROXIES.pop() {
-            if stop {
-                break;
-            }
             if let Some(proxy) = proxy::Proxy::create(host.as_str(), port, expected_types).await {
                 if !expected_countries.is_empty()
                     && !expected_countries.contains(&proxy.geo.iso_code)
                 {
                     continue;
                 }
-                counter += 1;
-                let mut msg = String::new();
-                msg.push_str(
-                    match format.as_str() {
-                        "text" => proxy.as_text(),
-                        "json" => proxy.as_json(),
-                        _ => format!("{}", proxy),
-                    }
-                    .as_str(),
-                );
 
-                if limit != 0 && counter > limit {
-                    msg.push_str(if format == "json" { "]" } else { "" });
-                    stop = true;
-                } else if format == "json" {
-                    msg.push(',')
-                }
-                msg.push('\n');
+                let msg = match format.as_str() {
+                    "text" => proxy.as_text(),
+                    "json" => proxy.as_json(),
+                    _ => format!("{}", proxy),
+                };
+
                 tx.send(msg).unwrap()
             }
         }
     }
-    tx.send(EOF_MSG.to_string()).unwrap();
 }
 
 async fn handle_find_command(
@@ -97,17 +74,10 @@ async fn handle_find_command(
 ) {
     // config
     let format = args.format;
-    let limit = args.limit;
 
     checker.expected_types = args.types;
     checker.expected_levels = args.levels;
     checker.expected_countries = args.countries;
-
-    let counter = Arc::new(Mutex::new(1));
-
-    if format == "json" {
-        tx.send("[".to_string()).unwrap();
-    }
 
     while !*STOP_FIND_LOOP.lock() {
         let mut proxies = Vec::with_capacity(5000);
@@ -117,38 +87,16 @@ async fn handle_find_command(
             }
             if let Some(mut proxy) = Proxy::create(host.as_str(), port, expected_types).await {
                 let mut checker_clone = checker.clone();
-                let counter = counter.clone();
-                let limit = limit;
                 let format = format.clone();
                 let tx = tx.clone();
                 proxies.push(task::spawn(async move {
                     if checker_clone.check_proxy(&mut proxy).await {
-                        let mut counter = counter.lock();
-                        *counter += 1;
-
-                        let mut msg = String::new();
-                        msg.push_str(
-                            match format.as_str() {
-                                "text" => proxy.as_text(),
-                                "json" => proxy.as_json(),
-                                _ => format!("{}", proxy),
-                            }
-                            .as_str(),
-                        );
-
-                        let end = limit != 0 && *counter > limit;
-                        if end {
-                            msg.push_str(if format == "json" { "]" } else { "" });
-                            let mut stop_file_loop = STOP_FIND_LOOP.lock();
-                            *stop_file_loop = true;
-                        } else if format == "json" {
-                            msg.push(',');
-                        }
-                        msg.push('\n');
+                        let msg = match format.as_str() {
+                            "text" => proxy.as_text(),
+                            "json" => proxy.as_json(),
+                            _ => format!("{}", proxy),
+                        };
                         tx.send(msg).unwrap();
-                        if end {
-                            tx.send(EOF_MSG.to_string()).unwrap()
-                        }
                     }
                 }));
             }
@@ -225,17 +173,24 @@ fn main() {
 
             let mut files = vec![];
             let (tx, mut rx) = mpsc::unbounded_channel();
+
             let outfile;
+            let limit;
+            let format;
 
             match cli.sub {
                 Commands::Grab(grab_args) => {
                     outfile = grab_args.outfile.clone();
+                    limit = grab_args.limit;
+                    format = grab_args.format.clone();
 
                     let tx = tx.clone();
                     tasks.push(task::spawn(handle_grab_command(grab_args, tx)))
                 }
                 Commands::Find(find_args) => {
                     outfile = find_args.outfile.clone();
+                    limit = find_args.limit;
+                    format = find_args.format.clone();
 
                     let mut checker = Checker::new().await;
                     checker.max_tries = max_tries;
@@ -284,12 +239,30 @@ fn main() {
                 Box::pin(stdout())
             };
 
-            while let Some(msg) = rx.recv().await {
-                if msg == EOF_MSG {
-                    break;
-                }
-                output.write_all(msg.as_bytes()).await.unwrap();
+            let mut counter = limit;
+            if format == "json" {
+                output.write_all(b"[").await.unwrap();
             }
-            std::process::exit(0);
+            while let Some(msg) = rx.recv().await {
+                let stop = msg == EOF_MSG || (limit != 0 && counter <= 1);
+
+                if msg != EOF_MSG {
+                    output.write_all(msg.as_bytes()).await.unwrap();
+                    if stop {
+                        output
+                            .write_all(if format == "json" { b"]" } else { b"" })
+                            .await
+                            .unwrap();
+                    } else if format == "json" {
+                        output.write_all(b",").await.unwrap();
+                    }
+                    output.write_all(b"\n").await.unwrap();
+                }
+                counter -= 1;
+
+                if stop {
+                    std::process::exit(0);
+                }
+            }
         });
 }

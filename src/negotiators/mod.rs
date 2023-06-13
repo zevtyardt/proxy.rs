@@ -1,4 +1,6 @@
-pub mod http_negotiator;
-pub mod https_negotiator;
-pub mod socks4_negotiator;
-pub mod socks5_negotiator;
+pub mod connect_25;
+pub mod connect_80;
+pub mod http;
+pub mod https;
+pub mod socks4;
+pub mod socks5;

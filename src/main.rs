@@ -6,6 +6,7 @@
 use argument::{FindArgs, GrabArgs};
 use checker::Checker;
 use clap::Parser;
+use futures_util::{stream, StreamExt};
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
 use proxy::Proxy;
@@ -23,7 +24,7 @@ use tokio::{
 use crate::{
     argument::{Cli, Commands},
     providers::PROXIES,
-    utils::run_parallel,
+    utils::{run_parallel, update::check_version},
 };
 
 mod argument;
@@ -80,36 +81,42 @@ async fn handle_find_command(
     checker.expected_countries = args.countries;
 
     while !*STOP_FIND_LOOP.lock() {
-        let mut proxies = Vec::with_capacity(5000);
+        let mut proxies = Vec::new();
         while let Ok((host, port, expected_types)) = PROXIES.pop() {
-            if proxies.len() >= 5000 {
-                break;
-            }
-            if let Some(mut proxy) = Proxy::create(host.as_str(), port, expected_types).await {
-                let mut checker_clone = checker.clone();
-                let format = format.clone();
-                let tx = tx.clone();
-                proxies.push(task::spawn(async move {
-                    if checker_clone.check_proxy(&mut proxy).await {
-                        let msg = match format.as_str() {
-                            "text" => proxy.as_text(),
-                            "json" => proxy.as_json(),
-                            _ => format!("{}", proxy),
-                        };
-                        tx.send(msg).unwrap();
-                    }
-                }));
+            if let Some(proxy) = Proxy::create(host.as_str(), port, expected_types).await {
+                proxies.push(proxy)
             }
         }
 
         if !proxies.is_empty() {
             let stime = time::Instant::now();
-            let ret = run_parallel::<()>(proxies, Some(max_conn)).await;
+            let ret = stream::iter(proxies)
+                .map(|mut proxy| {
+                    let mut checker = checker.clone();
+                    let format = format.clone();
+                    let tx = tx.clone();
+                    task::spawn(async move {
+                        if checker.check_proxy(&mut proxy).await {
+                            let msg = match format.as_str() {
+                                "text" => proxy.as_text(),
+                                "json" => proxy.as_json(),
+                                _ => format!("{}", proxy),
+                            };
+                            tx.send(msg).unwrap();
+                        }
+                    })
+                })
+                .map(|f| async { f.await.unwrap_or(()) })
+                .buffer_unordered(max_conn)
+                .collect::<Vec<()>>()
+                .await;
+
             log::info!(
                 "Finished checking {} proxies. Runtime {:?}",
                 ret.len(),
                 stime.elapsed()
             );
+
             if *STOP_FIND_LOOP.lock() {
                 tx.send(EOF_MSG.to_string()).unwrap()
             }
@@ -177,6 +184,8 @@ fn main() {
             let outfile;
             let limit;
             let format;
+
+            tasks.push(task::spawn(check_version()));
 
             match cli.sub {
                 Commands::Grab(grab_args) => {

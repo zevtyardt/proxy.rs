@@ -9,7 +9,9 @@ pub async fn check_version() {
                 let latest_version = cap.get(1).unwrap().as_str();
                 let current_version = env!("CARGO_PKG_VERSION");
 
-                log::warn!("Version Mismatch:\nLatest version detected: v{}\nCurrent version: v{}\n\nPlease update or reinstall for compatibility. For more information:\nvisit https://github.com/zevtyardt/proxy.rs\n", latest_version, current_version);
+                if latest_version != current_version {
+                    log::warn!("Version Mismatch:\nLatest version detected: v{}\nCurrent version: v{}\n\nPlease update or reinstall for compatibility. For more information:\nvisit https://github.com/zevtyardt/proxy.rs\n", latest_version, current_version);
+                }
             }
         }
     }

@@ -6,7 +6,7 @@ use clap::{Args, Parser, Subcommand};
 https://github.com/zevtyardt/proxy.rs/issues")]
 pub struct Cli {
     /// The maximum number of concurrent checks of proxies
-    #[arg(long, default_value = "200")]
+    #[arg(long, default_value = "5000")]
     pub max_conn: usize,
 
     /// The maximum number of attempts to check a proxy

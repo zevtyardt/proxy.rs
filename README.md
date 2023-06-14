@@ -8,6 +8,14 @@ Proxy.rs is a high-speed proxy tool built with Rust, featuring two main function
 ## Preview
 ![Proxy.rs Preview](./images/preview.svg)
 
+## Features
+- High-speed performance: Built with Rust for optimal speed.
+- Support protocols: HTTP(S), SOCKS4/5. Also CONNECT method to ports 80 and 25 (SMTP)
+- Version update notification.
+- Proxies may be filtered by type, anonymity level, country.
+- Automatically removes duplicate proxies.
+- Is asyncronous.
+
 ## Installation
 
 - Install Rust and Cargo.
@@ -83,6 +91,7 @@ proxy-rs grab --countries ID --limit 10 --outfile ./proxies.txt
 
 The following features are currently being worked on:
 
+- Proxy server implementation
 - Implementing proxy DNSBL (Domain Name System Blacklist) checking for enhanced security.
 - Improving the speed of the proxy checker for faster validation.
 - Added more providers

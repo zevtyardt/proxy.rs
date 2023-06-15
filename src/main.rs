@@ -248,14 +248,17 @@ fn main() {
                 Box::pin(stdout())
             };
 
+            let mut open_list = false;
             let mut counter = limit;
-            if format == "json" {
-                output.write_all(b"[").await.unwrap();
-            }
             while let Some(msg) = rx.recv().await {
                 let stop = msg == EOF_MSG || (limit != 0 && counter <= 1);
 
                 if msg != EOF_MSG {
+                    if format == "json" && !open_list {
+                        output.write_all(b"[").await.unwrap();
+                        open_list = true;
+                    }
+
                     output.write_all(msg.as_bytes()).await.unwrap();
                     if stop {
                         output

@@ -2,6 +2,7 @@ pub mod base_provider;
 pub mod freeproxylist;
 pub mod github;
 pub mod ipaddress_com;
+pub mod premiumproxy_net;
 pub mod proxyscan;
 pub mod proxyscrape;
 
@@ -91,6 +92,12 @@ pub fn get_all_tasks() -> Vec<JoinHandle<()>> {
     tasks.push(spawn(async {
         let mut proxyscan_socks5 = proxyscan::socks5::ProxyscanIoSocks5Provider::default();
         proxyscan_socks5.get_proxies().await;
+    }));
+
+    /* ===== */
+    tasks.push(spawn(async {
+        let mut premiumproxy_net = premiumproxy_net::PremiumproxyNetProvider::default();
+        premiumproxy_net.get_proxies().await;
     }));
 
     tasks

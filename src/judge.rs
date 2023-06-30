@@ -32,7 +32,7 @@ impl Judge {
             ip_address: None,
             is_working: false,
             marks,
-            timeout: 8,
+            timeout: 5,
             verify_ssl: false,
         }
     }
@@ -51,8 +51,10 @@ impl Judge {
 
             self.ip_address = Some(ip_address);
 
+            let timeout = Duration::from_secs(self.timeout as u64);
             let client = Client::builder()
-                .timeout(Duration::from_secs(self.timeout as u64))
+                .timeout(timeout)
+                .connect_timeout(timeout)
                 .danger_accept_invalid_certs(!self.verify_ssl)
                 .build()
                 .unwrap();

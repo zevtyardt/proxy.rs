@@ -1,4 +1,4 @@
-use crate::{judge::Judge, proxy::Proxy, utils::http::Response};
+use crate::{judge::Judge, proxy::Proxy, utils::http::response::ResponseParser};
 
 #[derive(Debug, Clone)]
 pub struct Connect80Negotiator {
@@ -16,7 +16,7 @@ impl Connect80Negotiator {
         proxy.send(connect_payload.as_bytes()).await;
 
         if let Some(data) = proxy.recv_all().await {
-            let response = Response::parse(data.as_slice());
+            let response = ResponseParser::parse(data.as_slice());
             if let Some(status_code) = response.status_code {
                 if status_code == 200 {
                     return true;

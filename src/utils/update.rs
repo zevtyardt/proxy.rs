@@ -4,7 +4,7 @@ const GITHUB_CARGO_URL: &str =
 pub async fn check_version() {
     if let Ok(response) = reqwest::get(GITHUB_CARGO_URL).await {
         if let Ok(text) = response.text().await {
-            let re = regex::Regex::new(r#"version = \"([\d.]+)\""#).unwrap();
+            let re = regex::Regex::new(r#"version = "([\d.]+)""#).unwrap();
             if let Some(cap) = re.captures(text.as_str()) {
                 let latest_version = cap.get(1).unwrap().as_str();
                 let current_version = env!("CARGO_PKG_VERSION");

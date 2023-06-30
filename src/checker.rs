@@ -1,5 +1,6 @@
 use std::{collections::BTreeMap, process::exit, sync::Arc};
 
+use futures_util::{stream, StreamExt};
 use lazy_static::lazy_static;
 use parking_lot::{Condvar, Mutex};
 use rand::seq::SliceRandom;
@@ -15,8 +16,8 @@ use crate::{
     proxy::Proxy,
     resolver::Resolver,
     utils::{
-        http::{get_headers, Response},
-        run_parallel, vec_of_strings,
+        http::{get_headers, response::ResponseParser},
+        vec_of_strings,
     },
 };
 
@@ -29,8 +30,6 @@ lazy_static! {
 
 pub async fn check_judges(ssl: bool, ext_ip: String, mut expected_types: Vec<String>) {
     let stime = time::Instant::now();
-    let mut tasks = vec![];
-
     if !expected_types.contains(&"SMTP".to_string())
         && expected_types.contains(&"CONNECT:25".to_string())
     {
@@ -45,32 +44,35 @@ pub async fn check_judges(ssl: bool, ext_ip: String, mut expected_types: Vec<Str
         expected_types.push("HTTP".to_string());
     }
 
-    for mut judge in get_judges() {
-        let ssl = ssl;
-        let ext_ip = ext_ip.clone();
-
-        if !expected_types.contains(&judge.scheme) {
-            continue;
-        }
-
-        tasks.push(spawn(async move {
-            let scheme = &judge.scheme.clone();
+    stream::iter(get_judges())
+        .map(|mut judge| {
             judge.verify_ssl = ssl;
-            judge.check_host(ext_ip.as_str()).await;
 
-            if judge.is_working {
-                let mut judges_by_scheme = JUDGES.lock();
-                if !judges_by_scheme.contains_key(scheme) {
-                    judges_by_scheme.insert(scheme.clone(), vec![]);
-                }
-                if let Some(value) = judges_by_scheme.get_mut(scheme) {
-                    value.push(judge.clone());
-                }
-            }
-        }))
-    }
+            let ext_ip = ext_ip.clone();
+            let expected_types = expected_types.clone();
 
-    run_parallel::<()>(tasks, Some(1)).await;
+            spawn(async move {
+                let scheme = judge.scheme.clone();
+                if !expected_types.contains(&scheme) {
+                    return;
+                }
+
+                judge.check_host(ext_ip.as_str()).await;
+                if judge.is_working {
+                    let mut judges_by_scheme = JUDGES.lock();
+                    if !judges_by_scheme.contains_key(&scheme) {
+                        judges_by_scheme.insert(scheme.clone(), vec![]);
+                    }
+                    if let Some(value) = judges_by_scheme.get_mut(&scheme) {
+                        value.push(judge.clone());
+                    }
+                }
+            })
+        })
+        .map(|f| async { f.await.unwrap_or(()) })
+        .buffer_unordered(5)
+        .collect::<Vec<()>>()
+        .await;
 
     let mut working = 0;
     let mut no_judges = vec![];
@@ -199,7 +201,7 @@ impl Checker {
         if let Some(data) = proxy.recv_all().await {
             proxy.log("Request: success", None, None);
             let mut anonimity_lvl = None;
-            let response = Response::parse(data.as_slice());
+            let response = ResponseParser::parse(data.as_slice());
 
             //log::warn!("=====\n{raw_request}\n{0}", response.raw);
 
@@ -272,7 +274,11 @@ impl Checker {
         }
     }
 
-    fn get_anonimity_level(&self, response: &Response, marks: &BTreeMap<String, usize>) -> String {
+    fn get_anonimity_level(
+        &self,
+        response: &ResponseParser,
+        marks: &BTreeMap<String, usize>,
+    ) -> String {
         let content = response.body.to_lowercase();
         let mut via = false;
         if let Some(via_m) = marks.get("via") {
@@ -301,7 +307,7 @@ impl Checker {
 
     fn get_response_status(
         &self,
-        response: &Response,
+        response: &ResponseParser,
         headers: BTreeMap<String, String>,
         rv: String,
     ) -> bool {

@@ -4,14 +4,15 @@ use std::{
 };
 
 use directories::ProjectDirs;
-use futures_util::StreamExt;
+use hyper::{body::HttpBody, header::CONTENT_LENGTH, Body, Request};
 use indicatif::{ProgressBar, ProgressStyle};
 use maxminddb::Reader;
-use reqwest::Client;
 use tokio::{
     fs::File,
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
 };
+
+use super::http::{hyper_client, random_useragent};
 
 const GEOLITEDB: &str = "GeoLite2-City.mmdb";
 const GEOLITEDB_DOWNLOAD_URL: &str =
@@ -23,29 +24,31 @@ async fn download_geolite_db() {
     let bar = ProgressBar::new(0);
     bar.set_style(
         ProgressStyle::with_template(
-            " INFO  Downloading GeoLite2-City.mmdb => {percent}% {bytes}/{total_bytes} ({bytes_per_sec}, {eta})",
+            "INFO  Downloading GeoLite2-City.mmdb => {percent}% {bytes}/{total_bytes} ({bytes_per_sec}, {eta})",
         )
         .unwrap(),
     );
-    let client = Client::builder().build().unwrap();
-    if let Ok(head_resp) = client.head(GEOLITEDB_DOWNLOAD_URL).send().await {
-        let headers = head_resp.headers();
-        if let Some(content_length) = headers.get("content-length") {
-            if let Ok(content_length) = content_length.to_str() {
-                bar.set_length(content_length.parse::<u64>().unwrap())
-            }
-        }
-    }
+
+    let client = hyper_client();
+    let request = Request::builder()
+        .uri(GEOLITEDB_DOWNLOAD_URL)
+        .body(Body::empty())
+        .unwrap();
 
     let local_db = PathBuf::from(format!("./data/{}", GEOLITEDB));
     if let Ok(mut file) = File::create(local_db).await {
-        if let Ok(response) = client.get(GEOLITEDB_DOWNLOAD_URL).send().await {
-            let mut stream = response.bytes_stream();
-            while let Some(chunk) = stream.next().await {
-                if let Ok(bytes) = chunk {
-                    if file.write_all(&bytes).await.is_ok() {
-                        bar.inc(bytes.len() as u64)
-                    }
+        if let Ok(response) = client.request(request).await {
+            let headers = response.headers();
+            if let Some(content_length) = headers.get(CONTENT_LENGTH) {
+                if let Ok(content_length) = content_length.to_str() {
+                    bar.set_length(content_length.parse::<u64>().unwrap());
+                }
+            }
+
+            let mut body = response.into_body();
+            while let Some(Ok(bytes)) = body.data().await {
+                if file.write_all(&bytes).await.is_ok() {
+                    bar.inc(bytes.len() as u64)
                 }
             }
         }
@@ -79,6 +82,7 @@ pub async fn open_geolite_db() -> Option<Reader<Vec<u8>>> {
         ProjectDirs::from_path(option_env!("CARGO_PKG_NAME").unwrap_or("proxy-rs").into())
     {
         let data_dir = project_dir.data_dir().to_path_buf();
+        let mut warn = false;
         loop {
             let db = data_dir.join("data").join(GEOLITEDB);
 
@@ -90,13 +94,23 @@ pub async fn open_geolite_db() -> Option<Reader<Vec<u8>>> {
 
             let mut redownload = true;
             if db.exists() {
-                if let Ok(response) = reqwest::get(GEOLITEDB_CHECKSUM_URL).await {
-                    let expected_checksum = response.text().await.unwrap().trim().to_string();
-                    let checksum = calculate_checksum(&db).await;
-                    redownload = !expected_checksum.eq(&checksum);
+                let client = hyper_client();
+                let request = Request::builder()
+                    .header("User-Agent", random_useragent(true))
+                    .uri(GEOLITEDB_CHECKSUM_URL)
+                    .body(Body::empty())
+                    .unwrap();
 
-                    if redownload {
-                        log::debug!("Database checksum is different. Re-downloading..")
+                if let Ok(response) = client.request(request).await {
+                    if let Ok(body) = hyper::body::to_bytes(response.into_body()).await {
+                        let expected_checksum = String::from_utf8_lossy(&body).trim().to_string();
+                        let checksum = calculate_checksum(&db).await;
+                        redownload = !expected_checksum.eq(&checksum);
+
+                        if redownload && !warn {
+                            warn = true;
+                            log::warn!("Database checksum is different. Re-downloading..")
+                        }
                     }
                 }
             }

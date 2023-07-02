@@ -1,11 +1,24 @@
+use hyper::{Body, Request};
+
+use super::http::{hyper_client, random_useragent};
+
 const GITHUB_CARGO_URL: &str =
     "https://raw.githubusercontent.com/zevtyardt/proxy.rs/main/Cargo.toml";
 
 pub async fn check_version() {
-    if let Ok(response) = reqwest::get(GITHUB_CARGO_URL).await {
-        if let Ok(text) = response.text().await {
+    let client = hyper_client();
+
+    let request = Request::builder()
+        .uri(GITHUB_CARGO_URL)
+        .header("User-Agent", random_useragent(true))
+        .body(Body::empty())
+        .unwrap();
+
+    if let Ok(response) = client.request(request).await {
+        if let Ok(body) = hyper::body::to_bytes(response.into_body()).await {
+            let body_str = String::from_utf8_lossy(&body);
             let re = regex::Regex::new(r#"version = "([\d.]+)""#).unwrap();
-            if let Some(cap) = re.captures(text.as_str()) {
+            if let Some(cap) = re.captures(&body_str) {
                 let latest_version = cap.get(1).unwrap().as_str();
                 let current_version = env!("CARGO_PKG_VERSION");
 

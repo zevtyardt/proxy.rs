@@ -1,5 +1,8 @@
+use hyper::{client::HttpConnector, Body, Client};
+use hyper_tls::HttpsConnector;
 use rand::Rng;
 use std::collections::BTreeMap;
+
 pub mod request;
 pub mod response;
 
@@ -33,4 +36,9 @@ pub fn get_headers(random_value: bool) -> (BTreeMap<String, String>, String) {
     headers.insert("Referer".to_string(), "https://google.com/".to_string());
 
     (headers, rv.to_string())
+}
+
+pub fn hyper_client() -> Client<HttpsConnector<HttpConnector>> {
+    let httpsconnector = HttpsConnector::new();
+    Client::builder().build::<_, Body>(httpsconnector)
 }

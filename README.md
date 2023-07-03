@@ -1,9 +1,15 @@
 <div align="center">
 
 # Proxy.rs
-Proxy.rs is a high-speed proxy tool built with Rust, featuring two main functionalities: scraper and checker.
+Proxy.rs is a high-speed proxy tool built with Rust, featuring three main functionalities: scraper, checker and serve (beta).
 
 </div>
+
+## What's new
+- **increase performance by 300%**. now it only takes 3-5 seconds to search and check 1 proxy
+- **reduce memory consumption by 35%**. now it only takes 200-300 mb of memory
+- **added serve feature**. now you can run local proxy server directly from proxy-rs (beta)
+
 
 ## Preview
 ![Proxy.rs Preview](./images/preview.svg)

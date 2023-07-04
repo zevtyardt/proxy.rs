@@ -5,11 +5,11 @@ Proxy.rs is a high-speed proxy tool built with Rust, featuring three main functi
 
 </div>
 
-## What's new
-- **increase performance by 300%**. now it only takes 3-5 seconds to search and check 1 proxy
-- **reduce memory consumption by 35%**. now it only takes 200-300 mb of memory
-- **added serve feature**. now you can run local proxy server directly from proxy-rs (beta)
+## What's New
 
+- **Improved Performance**: Experience a remarkable **300% increase in performance**. Searching and checking a single proxy now only takes 3-5 seconds.
+- **Reduced Memory Consumption**: Enjoy a more optimized memory usage with a **35% reduction**. The tool now operates efficiently, requiring only 200-300 MB of memory.
+- **New Feature: Serve**: Run a local proxy server directly from proxy-rs (beta). Seamlessly host your own proxy server for enhanced flexibility and control.
 
 ## Preview
 ![Proxy.rs Preview](./images/preview.svg)

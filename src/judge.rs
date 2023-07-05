@@ -1,9 +1,10 @@
+use hyper::{client::HttpConnector, Body, Client, Request, StatusCode};
+use hyper_tls::HttpsConnector;
 use std::{collections::BTreeMap, time::Duration};
-
-use reqwest::Client;
+use tokio::time::timeout;
 use url::Url;
 
-use crate::resolver::Resolver;
+use crate::{resolver::Resolver, utils::http::random_useragent};
 
 #[derive(Debug, Clone)]
 pub struct Judge {
@@ -51,37 +52,50 @@ impl Judge {
 
             self.ip_address = Some(ip_address);
 
-            let timeout = Duration::from_secs(self.timeout as u64);
-            let client = Client::builder()
-                .timeout(timeout)
-                .connect_timeout(timeout)
+            // custom connector
+            let connector = hyper_tls::native_tls::TlsConnector::builder()
                 .danger_accept_invalid_certs(!self.verify_ssl)
+                .danger_accept_invalid_hostnames(!self.verify_ssl)
                 .build()
+                .map(|tls| {
+                    let mut http = HttpConnector::new();
+                    http.enforce_http(false);
+                    HttpsConnector::from((http, tls.into()))
+                })
                 .unwrap();
-            let request = client.get(self.url.clone()).send().await;
-            match request {
-                Ok(response) => {
-                    let status = response.status();
-                    if status.is_success() {
-                        if let Ok(page) = response.text().await {
-                            self.is_working =
-                                page.to_lowercase().contains(&real_ext_ip.to_lowercase());
 
-                            self.marks
-                                .insert("via".to_string(), page.matches("via").count());
-                            self.marks
-                                .insert("proxy".to_string(), page.matches("proxy").count());
-                        }
+            let client = Client::builder().build::<_, Body>(connector);
+            let request = Request::builder()
+                .uri(self.url.to_string())
+                .header("User-Agent", random_useragent(true))
+                .body(Body::empty())
+                .unwrap();
+
+            if let Ok(Ok(response)) = timeout(
+                Duration::from_secs(self.timeout as u64),
+                client.request(request),
+            )
+            .await
+            {
+                if StatusCode::OK == response.status() {
+                    if let Ok(body) = hyper::body::to_bytes(response.into_body()).await {
+                        let body_str = String::from_utf8_lossy(&body);
+                        self.is_working = body_str
+                            .to_lowercase()
+                            .contains(&real_ext_ip.to_lowercase());
+                        self.marks
+                            .insert("via".into(), body_str.matches("via").count());
+                        self.marks
+                            .insert("proxy".into(), body_str.matches("proxy").count());
                     }
                 }
-                Err(e) => log::debug!("{}", e),
             }
         }
 
         if self.is_working {
-            log::debug!("{} is working", self);
+            log::debug!("{}: is working", self);
         } else {
-            log::debug!("{} is not working", self)
+            log::debug!("{}: is not working", self)
         }
         self.is_working
     }

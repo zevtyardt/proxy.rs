@@ -1,64 +1,53 @@
+use async_recursion::async_recursion;
 use std::time::Duration;
 
+use hyper::{client::HttpConnector, header::LOCATION, Body, Client, Request};
+use hyper_tls::HttpsConnector;
 use regex::Regex;
-use reqwest::{Client, RequestBuilder};
 use tokio::time::timeout;
 
 use crate::{
     providers::{PROXIES, UNIQUE_PROXIES},
-    utils::{http::random_useragent, run_parallel},
+    utils::http::{hyper_client, random_useragent},
 };
 
 #[derive(Debug, Clone)]
 pub struct BaseProvider {
+    pub client: Client<HttpsConnector<HttpConnector>>,
     pub proto: Vec<String>,
     pub domain: String,
-    pub client: Client,
     pub timeout: i32,
-    pub max_tries: i32,
-}
-
-async fn get_html_with_timeout(task: RequestBuilder, timeout_in_sec: i32) -> Option<String> {
-    if let Ok(fut) = timeout(Duration::from_secs(timeout_in_sec as u64), async {
-        if let Ok(response) = task.send().await {
-            if let Ok(body) = response.text().await {
-                return body;
-            }
-        }
-        String::new()
-    })
-    .await
-    {
-        return Some(fut);
-    }
-    None
 }
 
 impl BaseProvider {
-    pub async fn get_html(&self, task: RequestBuilder) -> String {
-        for _ in 0..self.max_tries {
-            let task_c = task.try_clone().unwrap();
-            if let Some(body) = get_html_with_timeout(task_c, self.timeout).await {
-                return body;
+    pub fn build_get_request(&self, uri: String) -> Request<Body> {
+        Request::builder()
+            .uri(uri)
+            .header("User-Agent", random_useragent(true))
+            .body(Body::empty())
+            .unwrap()
+    }
+
+    #[async_recursion]
+    pub async fn get_html(&self, request: Request<Body>) -> String {
+        if let Ok(Ok(response)) = timeout(
+            Duration::from_secs(self.timeout as u64),
+            self.client.request(request),
+        )
+        .await
+        {
+            if let Some(redirect_url) = response.headers().get(LOCATION) {
+                let request = self.build_get_request(redirect_url.to_str().unwrap().into());
+
+                return self.get_html(request).await;
+            }
+
+            if let Ok(body) = hyper::body::to_bytes(response.into_body()).await {
+                let body_str = String::from_utf8_lossy(&body);
+                return body_str.to_string();
             }
         }
         String::new()
-    }
-
-    pub async fn get_all_html(&self, tasks: Vec<RequestBuilder>) -> Vec<String> {
-        let mut mapped_tasks = vec![];
-        for task in tasks {
-            let timeout = self.timeout;
-            let fut = tokio::task::spawn(async move {
-                if let Some(body) = get_html_with_timeout(task, timeout).await {
-                    return body;
-                }
-                String::new()
-            });
-            mapped_tasks.push(fut);
-        }
-        let ret = run_parallel(mapped_tasks, None).await;
-        ret.into_iter().map(|f| f.unwrap()).collect()
     }
 
     pub fn find_proxies(&self, pattern: String, html: &str) -> Vec<(String, u16, Vec<String>)> {
@@ -72,24 +61,12 @@ impl BaseProvider {
                 proxies.push((ip.to_string(), port, self.proto.clone()))
             }
         }
-        log::debug!("{} proxies received from {}", proxies.len(), self.domain);
         proxies
     }
 
     pub async fn update_stack(&self, proxies: &Vec<(String, u16, Vec<String>)>) {
         let mut added = 0;
         for (ip, port, proto) in proxies {
-            //
-            // if let Some(proxy) = Proxy::create(ip, *port, proto.to_vec()).await {
-            //     let host_port = proxy.as_text();
-            //
-            //     let mut unique_proxy = UNIQUE_PROXIES.lock();
-            //     if !unique_proxy.contains(&host_port) && PROXIES.push(proxy).is_ok() {
-            //         added += 1;
-            //         unique_proxy.push(host_port)
-            //     }
-            // }
-
             let host_port = format!("{}:{}", ip, port);
             let mut unique_proxy = UNIQUE_PROXIES.lock();
             if !unique_proxy.contains(&host_port)
@@ -101,21 +78,23 @@ impl BaseProvider {
                 unique_proxy.push(host_port)
             }
         }
+        log::debug!(
+            "{} of {} proxies added from {}",
+            added,
+            proxies.len(),
+            self.domain
+        );
 
-        log::debug!("{} proxies added(received) from {}", added, self.domain)
+        //log::debug!("{} proxies added(received) from {}", added, self.domain)
     }
 }
 
 impl Default for BaseProvider {
     fn default() -> Self {
         Self {
-            client: Client::builder()
-                .user_agent(random_useragent(true))
-                .build()
-                .unwrap(),
+            client: hyper_client(),
             domain: String::new(),
-            max_tries: 3,
-            timeout: 8,
+            timeout: 5,
             proto: vec![],
         }
     }

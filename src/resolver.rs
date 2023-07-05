@@ -1,6 +1,7 @@
 use std::{collections::HashMap, net::IpAddr};
 
 use async_once::AsyncOnce;
+use hyper::{Body, Request};
 use lazy_static::lazy_static;
 use maxminddb::{geoip2::City, Reader};
 use std::sync::{Arc, Mutex};
@@ -9,7 +10,7 @@ use trust_dns_resolver::{
     TokioAsyncResolver,
 };
 
-use crate::utils::geolite_database::open_geolite_db;
+use crate::utils::{geolite_database::open_geolite_db, http::hyper_client};
 
 #[derive(Debug, Clone)]
 pub struct GeoData {
@@ -138,11 +139,18 @@ impl Resolver {
     }
 
     pub async fn get_real_ext_ip(&self) -> String {
+        let client = hyper_client();
         for ext_ip_host in EXT_IP_HOSTS.iter() {
-            match reqwest::get(ext_ip_host).await {
-                Ok(response) => match response.text().await {
+            let request = Request::builder()
+                .uri(ext_ip_host)
+                .body(Body::empty())
+                .unwrap();
+
+            match client.request(request).await {
+                Ok(response) => match hyper::body::to_bytes(response.into_body()).await {
                     Ok(body) => {
-                        let ip = body.trim();
+                        let body_str = String::from_utf8_lossy(&body);
+                        let ip = body_str.trim();
                         if self.host_is_ip(ip) {
                             log::debug!("Ext ip ({}) retrieved using host: {}", ip, ext_ip_host);
                             return ip.to_string();

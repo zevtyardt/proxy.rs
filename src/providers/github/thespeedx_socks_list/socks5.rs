@@ -9,7 +9,7 @@ pub struct GithubTheSpeedXProxyListSocks5Provider {
 
 impl GithubTheSpeedXProxyListSocks5Provider {
     pub async fn get_proxies(&mut self) -> Vec<(String, u16, Vec<String>)> {
-        let req = self.base.client.get(self.url.clone());
+        let req = self.base.build_get_request(self.url.clone());
         let html = self.base.get_html(req).await;
         let proxies = self.base.find_proxies(self.pattern.clone(), html.as_str());
         self.base.update_stack(&proxies).await;

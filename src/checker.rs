@@ -70,7 +70,7 @@ pub async fn check_judges(ssl: bool, ext_ip: String, mut expected_types: Vec<Str
             })
         })
         .map(|f| async { f.await.unwrap_or(()) })
-        .buffer_unordered(5)
+        .buffer_unordered(20)
         .collect::<Vec<()>>()
         .await;
 

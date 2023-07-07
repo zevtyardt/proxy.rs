@@ -9,10 +9,6 @@ pub struct Cli {
     #[arg(long, default_value = "5000")]
     pub max_conn: usize,
 
-    /// The maximum number of attempts to check a proxy
-    #[arg(long, default_value = "1")]
-    pub max_tries: usize,
-
     /// Time in seconds before giving up
     #[arg(short, long, default_value = "8")]
     pub timeout: usize,
@@ -28,6 +24,10 @@ pub struct Cli {
     )]
     pub log_level: String,
 
+    /// Disable version checking
+    #[arg(long)]
+    pub skip_version_check: bool,
+
     #[command(subcommand)]
     pub sub: Commands,
 }
@@ -41,6 +41,9 @@ pub enum Commands {
 
     /// Find and check proxies
     Find(FindArgs),
+
+    /// Run a local proxy server [BETA]
+    Serve(ServeArgs),
 }
 
 #[derive(Args, Debug, Clone)]
@@ -102,6 +105,10 @@ pub struct FindArgs {
     )]
     pub levels: Vec<String>,
 
+    /// The maximum number of attempts to check a proxy
+    #[arg(long, default_value = "1")]
+    pub max_tries: usize,
+
     /// Flag indicating that the proxy must support cookies
     #[arg(long, default_value = "false")]
     pub support_cookies: bool,
@@ -132,4 +139,51 @@ pub struct FindArgs {
     /// Save found proxies to file. By default, output to console
     #[arg(short, long)]
     pub outfile: Option<std::path::PathBuf>,
+}
+
+#[derive(Args, Debug, Clone)]
+#[command(after_help = "Suggestions and bug reports are greatly appreciated:
+https://github.com/zevtyardt/proxy.rs/issues")]
+pub struct ServeArgs {
+    /// Host of local proxy swrver
+    #[arg(long, default_value = "127.0.0.1")]
+    pub host: String,
+
+    /// Port of local proxy swrver
+    #[arg(long, default_value = "8080")]
+    pub port: u16,
+
+    /// Type(s) (protocols) that need to be check on support by proxy
+    #[arg(long, required = true, num_args(1..),
+        value_parser([
+            PossibleValue::new("HTTP"),
+            PossibleValue::new("HTTPS"),
+            PossibleValue::new("SOCKS4"),
+            PossibleValue::new("SOCKS5"),
+            PossibleValue::new("CONNECT:80"),
+        ]),
+    )]
+    pub types: Vec<String>,
+
+    /// Path to the file with proxies. If specified, used instead of providers
+    #[arg(long, num_args(1..))]
+    pub files: Vec<std::path::PathBuf>,
+
+    /// Level(s) of anonymity (for HTTP only). By default, any level
+    #[arg(long, num_args(1..),
+        value_parser([
+            PossibleValue::new("Transparent"),
+            PossibleValue::new("Anonymous"),
+            PossibleValue::new("High")
+        ])
+    )]
+    pub levels: Vec<String>,
+
+    /// The maximum number of attempts to check a proxy
+    #[arg(long, default_value = "1")]
+    pub max_tries: usize,
+
+    /// List of ISO country codes where should be located proxies
+    #[arg(short, long, num_args(1..))]
+    pub countries: Vec<String>,
 }

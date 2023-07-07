@@ -18,6 +18,7 @@ Proxy.rs is a high-speed proxy tool built with Rust, featuring three main functi
 - High-speed performance: Built with Rust for optimal speed.
 - Support protocols: HTTP(S), SOCKS4/5. Also CONNECT method to ports 80 and 25 (SMTP)
 - Version update notification.
+- Work as a proxy server that distributes incoming requests to external proxies. With automatic proxy rotation.
 - Proxies may be filtered by type, anonymity level, country.
 - Automatically removes duplicate proxies.
 - Is asyncronous.

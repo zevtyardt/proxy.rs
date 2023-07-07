@@ -97,10 +97,11 @@ proxy-rs grab --countries ID --limit 10 --outfile ./proxies.txt
 
 The following features are currently being worked on:
 
-- Proxy server implementation
 - Implementing proxy DNSBL (Domain Name System Blacklist) checking for enhanced security.
 - Improving the speed of the proxy checker for faster validation.
 - Added more providers
+- Implement redirect handling in the proxy server.
+- 
 
 ## Contribution
 

@@ -55,7 +55,6 @@ Usage: proxy-rs [OPTIONS] <COMMAND>
 
 **Options**
 - `--max-conn <MAX_CONN>`: The maximum number of concurrent checks of proxies. Default: 200.
-- `--max-tries <MAX_TRIES>`: The maximum number of attempts to check a proxy. Default: 1.
 - `-t, --timeout <TIMEOUT>`: Time in seconds before giving up. Default: 8.
 - `--log <LOG_LEVEL>`: Logging level. Default: warn. Possible values: debug, info, warn, error.
 
@@ -73,6 +72,7 @@ proxy-rs find --types HTTP HTTPS -l 10 --levels High --countries ID
 - `--types <TYPES>...`: Type(s) (protocols) to check for proxy support. Possible values: HTTP, HTTPS, SOCKS4, SOCKS5, CONNECT:80, CONNECT:25.
 - `--files <FILES>...`: Path to the file with proxies. If specified, it is used instead of providers.
 - `--levels <LEVELS>...`: Level(s) of anonymity (for HTTP only). By default, any level. Possible values: Transparent, Anonymous, High.
+- `--max-tries <MAX_TRIES>`: The maximum number of attempts to check a proxy. Default: 1.
 - `--support-cookies`: Flag indicating that the proxy must support cookies.
 - `--support-referer`: Flag indicating that the proxy must support referer.
 - `-c, --countries <COUNTRIES>...`: List of ISO country codes where the proxies should be located.

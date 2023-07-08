@@ -121,6 +121,8 @@ pub fn get_judges() -> Vec<Judge> {
         "https://httpheader.net/azenv.php",
         "http://mojeip.net.pl/asdfa/azenv.php",
         "http://proxyjudge.us",
+        "https://www.proxyjudge.info",
+        "http://www.proxyjudge.info",
         "http://pascal.hoez.free.fr/azenv.php",
     ] {
         let judge = Judge::new(url_judge);

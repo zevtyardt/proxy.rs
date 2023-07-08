@@ -10,15 +10,17 @@ pub async fn check_version() {
 
     let request = Request::builder()
         .uri(GITHUB_CARGO_URL)
+        .header("Cache-Control", "no-cache")
         .body(Body::empty())
         .unwrap();
 
     if let Ok(response) = client.request(request).await {
         if let Ok(body) = hyper::body::to_bytes(response.into_body()).await {
             let body_str = String::from_utf8_lossy(&body);
-            let re = regex::Regex::new(r#"version = "([\d.]+)""#).unwrap();
-            if let Some(cap) = re.captures(&body_str) {
-                let latest_version = cap.get(1).unwrap().as_str();
+            if let Some(version) = body_str.lines().find(|p| p.starts_with("version")) {
+                let latest_version = version
+                    .trim_start_matches("version = \"")
+                    .trim_end_matches("\"");
                 let current_version = env!("CARGO_PKG_VERSION");
 
                 if latest_version != current_version {

@@ -1,6 +1,6 @@
 use hyper::{Body, Request};
 
-use super::http::{hyper_client, random_useragent};
+use super::http::hyper_client;
 
 const GITHUB_CARGO_URL: &str =
     "https://raw.githubusercontent.com/zevtyardt/proxy.rs/main/Cargo.toml";
@@ -10,7 +10,6 @@ pub async fn check_version() {
 
     let request = Request::builder()
         .uri(GITHUB_CARGO_URL)
-        .header("User-Agent", random_useragent(true))
         .body(Body::empty())
         .unwrap();
 

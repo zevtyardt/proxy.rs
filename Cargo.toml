@@ -1,6 +1,6 @@
 [package]
 name = "proxy-rs"
-version = "0.2.6-dev.18"
+version = "0.2.6-dev.20"
 edition = "2021"
 
 [dependencies]

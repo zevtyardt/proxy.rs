@@ -102,7 +102,6 @@ The following features are currently being worked on:
 - Improving the speed of the proxy checker for faster validation.
 - Added more providers
 - Implement redirect handling in the proxy server.
-- 
 
 ## Contribution
 

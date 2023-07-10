@@ -55,6 +55,7 @@ Usage: proxy-rs [OPTIONS] <COMMAND>
 **Commands**
 - `grab`: Find proxies without performing any checks.
 - `find`: Find and check proxies.
+- `serve`: Run a local proxy server (**BETA**)
 
 **Options**
 - `--max-conn <MAX_CONN>`: The maximum number of concurrent checks of proxies. Default: 200.
@@ -96,6 +97,11 @@ proxy-rs grab --countries ID --limit 10 --outfile ./proxies.txt
 - `-l, --limit <LIMIT>`: The maximum number of working proxies. Default: 0.
 - `-f, --format <FORMAT>`: The format in which the results will be presented. Default: default. Possible values: default, text, json.
 - `-o, --outfile <OUTFILE>`: Save found proxies to a file. By default, the output is displayed on the console.
+
+### serve
+Run a local proxy server that distributes incoming requests to a pool of found HTTP(S) proxies with the high level of anonymity:
+
+_still in progress_
 
 ## Currently Under Development
 

@@ -25,6 +25,9 @@ Proxy.rs is a high-speed proxy tool built with Rust, featuring three main functi
 
 ## Installation
 
+> **Note** : You must have `~/.cargo/bin/` in your `PATH` to run `proxy-rs` directly.
+
+
 - Install Rust and Cargo.
 - Install Git.
 - Clone this repository by running the command:

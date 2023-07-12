@@ -1,6 +1,5 @@
-use hyper::{Body, Request};
-
 use super::http::hyper_client;
+use hyper::{Body, Request};
 
 const GITHUB_CARGO_URL: &str =
     "https://raw.githubusercontent.com/zevtyardt/proxy.rs/main/Cargo.toml";
@@ -23,8 +22,21 @@ pub async fn check_version() {
                     .trim_end_matches("\"");
                 let current_version = env!("CARGO_PKG_VERSION");
 
-                if latest_version != current_version {
-                    log::warn!("Version Mismatch:\nLatest version detected: v{}\nCurrent version: v{}\n\nPlease update or reinstall for compatibility. For more information:\nvisit https://github.com/zevtyardt/proxy.rs\n", latest_version, current_version);
+                if latest_version == current_version {
+                    log::warn!(
+                        "Version Mismatch:
+Latest version detected: v{}
+Current version: v{}
+
+Please update by running the following command:
+cargo install --git https://github.com/zevtyardt/proxy.rs
+
+For more information, please visit:
+https://github.com/zevtyardt/proxy.rs
+",
+                        latest_version,
+                        current_version
+                    );
                 }
             }
         }

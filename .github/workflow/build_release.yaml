@@ -1,0 +1,106 @@
+name: ci
+
+on:
+  workflow_dispatch:
+    inputs:
+      manual_trigger:
+        description: 'Manual trigger'
+        required: true
+
+env:
+  project: 'release-rust'
+
+jobs:
+
+  test:
+    strategy:
+      matrix:
+        # rustup target list
+        include:
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+          - target: aarch64-linux-android
+            os: ubuntu-latest
+          - target: x86_64-apple-darwin
+            os: macos-latest
+          - target: x86_64-pc-windows-gnu
+            os: windows-latest
+
+    runs-on: ${{ matrix.os }}
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Version
+        uses: tcurdt/action-verify-version-cargo@master
+
+      - name: Toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          target: ${{ matrix.target }}
+          override: true
+
+      - name: Cache Rustup
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.rustup/settings.toml
+            ~/.rustup/toolchains/${{ matrix.target }}-*
+            ~/.rustup/update-hashes/${{ matrix.target }}-*
+          key: run-toolchain-rust_${{ matrix.target }}
+
+      - name: Cache Cargo
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ matrix.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          use-cross: true
+          command: build
+          args: --release --target=${{ matrix.target }}
+
+      - name: Test
+        uses: actions-rs/cargo@v1
+        with:
+          use-cross: true
+          command: test
+
+      - name: Upload
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.project }}_${{ matrix.target }}
+          path: |
+            ./target/${{ matrix.target }}/release/${{ env.project }}
+            ./target/${{ matrix.target }}/release/${{ env.project }}.exe
+
+  release:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: [ test ]
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Download
+        uses: actions/download-artifact@v3
+        with:
+          path: artifacts
+
+      - name: Archives
+        run: find artifacts -mindepth 1 -maxdepth 1  -exec tar -C {} -cvzf {}.tgz . \;
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            artifacts/*.tgz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,11 +1,7 @@
-name: ci
+name: release
 
 on:
   workflow_dispatch:
-    inputs:
-      manual_trigger:
-        description: 'Manual trigger'
-        required: true
 
 env:
   project: 'release-rust'

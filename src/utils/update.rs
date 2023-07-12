@@ -22,7 +22,7 @@ pub async fn check_version() {
                     .trim_end_matches("\"");
                 let current_version = env!("CARGO_PKG_VERSION");
 
-                if latest_version == current_version {
+                if latest_version != current_version {
                     log::warn!(
                         "Version Mismatch:
 Latest version detected: v{}

@@ -18,9 +18,9 @@ jobs:
           - target: aarch64-linux-android
             os: ubuntu-latest
           - target: x86_64-apple-darwin
-            os: macos-latest
+            os: ubuntu-latest
           - target: x86_64-pc-windows-gnu
-            os: windows-latest
+            os: ubuntu-latest
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -56,6 +56,11 @@ jobs:
             ~/.cargo/git
             target
           key: ${{ matrix.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config 
 
       - name: Build
         uses: actions-rs/cargo@v1

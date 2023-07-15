@@ -6,7 +6,6 @@ readme = "README.md"
 description = "fast Rust-based proxy checker"
 repository = "https://github.com/zevtyardt/proxy.rs"
 license = "MIT"
-license-file = "LICENSE"
 keywords = ["proxy", "scraper", "checker", "server"]
 categories = ["command-line-utilities"]
 exclude = ["/data"]

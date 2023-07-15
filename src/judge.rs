@@ -71,25 +71,31 @@ impl Judge {
                 .body(Body::empty())
                 .unwrap();
 
-            if let Ok(Ok(response)) = timeout(
+            let task = timeout(
                 Duration::from_secs(self.timeout as u64),
                 client.request(request),
-            )
-            .await
-            {
-                if StatusCode::OK == response.status() {
-                    if let Ok(body) = hyper::body::to_bytes(response.into_body()).await {
-                        let body_str = String::from_utf8_lossy(&body);
-                        self.is_working = body_str
-                            .to_lowercase()
-                            .contains(&real_ext_ip.to_lowercase());
-                        self.marks
-                            .insert("via".into(), body_str.matches("via").count());
-                        self.marks
-                            .insert("proxy".into(), body_str.matches("proxy").count());
+            );
+
+            match task.await {
+                Ok(task_ok) => match task_ok {
+                    Ok(response) => {
+                        if StatusCode::OK == response.status() {
+                            if let Ok(body) = hyper::body::to_bytes(response.into_body()).await {
+                                let body_str = String::from_utf8_lossy(&body);
+                                self.is_working = body_str
+                                    .to_lowercase()
+                                    .contains(&real_ext_ip.to_lowercase());
+                                self.marks
+                                    .insert("via".into(), body_str.matches("via").count());
+                                self.marks
+                                    .insert("proxy".into(), body_str.matches("proxy").count());
+                            }
+                        }
                     }
-                }
-            }
+                    Err(err) => log::error!("Error: {}", err),
+                },
+                Err(_) => log::error!("Timeout error"),
+            };
         }
 
         if self.is_working {

@@ -29,7 +29,7 @@ Latest version detected: v{}
 Current version: v{}
 
 Please update by running the following command:
-cargo install --git https://github.com/zevtyardt/proxy.rs
+cargo install proxy-rs
 
 For more information, please visit:
 https://github.com/zevtyardt/proxy.rs

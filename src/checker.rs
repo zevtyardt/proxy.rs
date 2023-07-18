@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, process::exit, sync::Arc};
+use std::{collections::BTreeMap, process::exit, sync::Arc, time::Duration};
 
 use futures_util::{stream, StreamExt};
 use lazy_static::lazy_static;
@@ -380,7 +380,11 @@ impl Checker {
 
         let mut judges = JUDGES.lock();
         while !judges.contains_key(&scheme) {
-            CV.wait(&mut judges)
+            let wait = CV.wait_for(&mut judges, Duration::from_secs(20));
+            if wait.timed_out() {
+                log::error!("Timeout error: no judge found");
+                std::process::exit(0)
+            }
         }
 
         let judges = judges.get(&scheme).unwrap();

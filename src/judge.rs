@@ -92,9 +92,9 @@ impl Judge {
                             }
                         }
                     }
-                    Err(err) => log::error!("Error: {}", err),
+                    Err(err) => log::error!("{}: Error: {}", self, err),
                 },
-                Err(_) => log::error!("Timeout error"),
+                Err(_) => log::error!("{}: Timeout error", self),
             };
         }
 

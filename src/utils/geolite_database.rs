@@ -3,7 +3,9 @@ use std::path::{Path, PathBuf};
 use directories::ProjectDirs;
 use hyper::{body::HttpBody, header::CONTENT_LENGTH, Body, Request};
 use indicatif::{ProgressBar, ProgressStyle};
+use lazy_static::lazy_static;
 use maxminddb::Reader;
+use parking_lot::Mutex;
 use tokio::{
     fs::{self, File},
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
@@ -17,7 +19,14 @@ const GEOLITEDB_DOWNLOAD_URL: &str =
 const GEOLITEDB_CHECKSUM_URL: &str =
     "https://raw.githubusercontent.com/zevtyardt/proxy.rs/main/data/Geolite2-City.mmdb.checksum";
 
+lazy_static! {
+    pub static ref DOWNLOADING: Mutex<bool> = Mutex::new(false);
+}
+
 async fn download_geolite_db() {
+    let mut isdown = DOWNLOADING.lock();
+    *isdown = true;
+
     let bar = ProgressBar::new(0);
     bar.set_style(
         ProgressStyle::with_template(
@@ -50,6 +59,9 @@ async fn download_geolite_db() {
             }
         }
     }
+    let mut isdown = DOWNLOADING.lock();
+    *isdown = false;
+
     bar.finish();
 }
 

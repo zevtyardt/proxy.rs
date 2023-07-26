@@ -16,6 +16,7 @@ use crate::{
     proxy::Proxy,
     resolver::Resolver,
     utils::{
+        geolite_database::DOWNLOADING,
         http::{get_headers, response::ResponseParser},
         vec_of_strings,
     },
@@ -109,6 +110,9 @@ pub async fn check_judges(ssl: bool, ext_ip: String, mut expected_types: Vec<Str
     }
     if working == 0 {
         log::error!("Not found judges!");
+        while *DOWNLOADING.lock() {
+            continue;
+        }
         exit(0);
     }
     log::info!("{} judges added, Runtime {:?}", working, stime.elapsed());
@@ -383,6 +387,10 @@ impl Checker {
             let wait = CV.wait_for(&mut judges, Duration::from_secs(20));
             if wait.timed_out() {
                 log::error!("Timeout error: no judge found");
+
+                while *DOWNLOADING.lock() {
+                    continue;
+                }
                 std::process::exit(0)
             }
         }

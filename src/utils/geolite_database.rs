@@ -24,8 +24,10 @@ lazy_static! {
 }
 
 async fn download_geolite_db() {
-    let mut isdown = DOWNLOADING.lock();
-    *isdown = true;
+    {
+        let mut isdown = DOWNLOADING.lock();
+        *isdown = true;
+    }
 
     let bar = ProgressBar::new(0);
     bar.set_style(

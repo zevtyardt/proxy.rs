@@ -19,7 +19,7 @@ pub async fn check_version() {
             if let Some(version) = body_str.lines().find(|p| p.starts_with("version")) {
                 let latest_version = version
                     .trim_start_matches("version = \"")
-                    .trim_end_matches("\"");
+                    .trim_end_matches('"');
                 let current_version = env!("CARGO_PKG_VERSION");
 
                 if latest_version != current_version {

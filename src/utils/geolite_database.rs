@@ -1,14 +1,11 @@
-use std::{
-    fs,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
 use directories::ProjectDirs;
 use hyper::{body::HttpBody, header::CONTENT_LENGTH, Body, Request};
 use indicatif::{ProgressBar, ProgressStyle};
 use maxminddb::Reader;
 use tokio::{
-    fs::File,
+    fs::{self, File},
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
 };
 
@@ -88,7 +85,7 @@ pub async fn open_geolite_db() -> Option<Reader<Vec<u8>>> {
 
             if let Some(db_parent) = &db.parent() {
                 if !db_parent.exists() {
-                    fs::create_dir_all(db_parent).unwrap();
+                    fs::create_dir_all(db_parent).await.unwrap();
                 }
             }
 
@@ -119,7 +116,7 @@ pub async fn open_geolite_db() -> Option<Reader<Vec<u8>>> {
                 let local_db = PathBuf::from(format!("./data/{}", GEOLITEDB));
                 if let Some(local_db_parent) = &local_db.parent() {
                     if !local_db_parent.exists() {
-                        fs::create_dir(local_db_parent).unwrap()
+                        fs::create_dir(local_db_parent).await.unwrap()
                     }
                 }
 
@@ -127,8 +124,10 @@ pub async fn open_geolite_db() -> Option<Reader<Vec<u8>>> {
                     download_geolite_db().await;
                 }
 
-                fs::rename(&local_db, &db).unwrap();
-                fs::remove_dir(local_db.parent().unwrap()).ok();
+                fs::copy(&local_db, &db).await.unwrap();
+                fs::remove_dir_all(local_db.parent().unwrap())
+                    .await
+                    .unwrap();
             }
 
             match Reader::open_readfile(&db) {

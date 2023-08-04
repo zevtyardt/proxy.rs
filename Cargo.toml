@@ -1,6 +1,6 @@
 [package]
 name = "proxy-rs"
-version = "0.2.72"
+version = "0.2.8"
 edition = "2021"
 readme = "README.md"
 description = "Fast Rust-based proxy checker"

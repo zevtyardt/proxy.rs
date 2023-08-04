@@ -384,9 +384,9 @@ impl Checker {
 
         let mut judges = JUDGES.lock();
         while !judges.contains_key(&scheme) {
-            let wait = CV.wait_for(&mut judges, Duration::from_secs(20));
+            let wait = CV.wait_for(&mut judges, Duration::from_secs(10));
             if wait.timed_out() {
-                log::error!("Timeout error: no judge found");
+                log::error!("Timeout error: no judges found");
 
                 while *DOWNLOADING.lock() {
                     continue;

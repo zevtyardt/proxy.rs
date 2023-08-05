@@ -1,4 +1,3 @@
-
 <div align="center">
 
 # Proxy.rs
@@ -23,6 +22,32 @@ Proxy.rs is a high-speed proxy tool built with Rust, featuring three main functi
 - Proxies may be filtered by type, anonymity level, country.
 - Automatically removes duplicate proxies.
 - Is asyncronous.
+
+<details>
+  <summary>List of proxy sources:</summary>
+
+  - [x] https://free-proxy-list.net/
+  - [x] https://api.good-proxies.ru/getfree.php?count=1000&key=freeproxy
+  - [x] https://www.ipaddress.com/proxy-list
+  - [x] https://www.megaproxylist.net
+  - [x] https://premiumproxy.net/full-proxy-list
+  - [x] https://proxypedia.org
+  - [x] www.proxyscan.io
+    - [x] https://www.proxyscan.io/download?type=http
+    - [x] https://www.proxyscan.io/download?type=https
+    - [x] https://www.proxyscan.io/download?type=socks4
+    - [x] https://www.proxyscan.io/download?type=socks5
+  - [x] api.proxyscrape.com
+    - [x] https://api.proxyscrape.com/?request=getproxies&proxytype=http
+    - [x] https://api.proxyscrape.com/?request=getproxies&proxytype=socks4
+    - [x] https://api.proxyscrape.com/?request=getproxies&proxytype=socks5
+  - [x] github.com
+    - [x] https://raw.githubusercontent.com/zevtyardt/proxy-list/main/all.txt
+    - [x] https://raw.githubusercontent.com/TheSpeedX/SOCKS-List/master/http.txt
+    - [x] https://raw.githubusercontent.com/TheSpeedX/SOCKS-List/master/socks4.txt
+    - [x] https://raw.githubusercontent.com/TheSpeedX/SOCKS-List/master/socks5.txt
+
+</details>
 
 ## Installation
 

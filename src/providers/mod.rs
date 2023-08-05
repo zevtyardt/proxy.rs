@@ -1,102 +1,160 @@
 pub mod base_provider;
-pub mod freeproxylist;
-pub mod github;
-pub mod ipaddress_com;
-pub mod premiumproxy_net;
-pub mod proxyscan;
-pub mod proxyscrape;
-
 use std::sync::Arc;
 
 use concurrent_queue::ConcurrentQueue;
 use futures_util::{stream, StreamExt};
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
-use rand::seq::SliceRandom;
+use rand::{seq::SliceRandom, thread_rng};
+use regex::Regex;
+
+use crate::utils::vec_of_strings;
+
+use self::base_provider::Provider;
 
 lazy_static! {
     pub static ref PROXIES: ConcurrentQueue<(String, u16, Vec<String>)> =
         ConcurrentQueue::unbounded();
     pub static ref UNIQUE_PROXIES: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
 }
+
+fn update_stack(name: &'static str, proxies: &Vec<(String, u16, Vec<String>)>) {
+    let mut added = 0;
+    for (ip, port, proto) in proxies {
+        let host_port = format!("{}:{}", ip, port);
+        let mut unique_proxy = UNIQUE_PROXIES.lock();
+        if !unique_proxy.contains(&host_port)
+            && PROXIES
+                .push((ip.to_owned(), *port, proto.to_owned()))
+                .is_ok()
+        {
+            added += 1;
+            unique_proxy.push(host_port)
+        }
+    }
+    log::debug!("{} of {} proxies added from {}", added, proxies.len(), name);
+}
+
 pub async fn run_all_providers(num_conn: usize) {
-    let num_providers: u32 = 14;
+    let mut all_providers = [
+        Provider {
+            name: "free-proxy-list.net",
+            url: "https://free-proxy-list.net",
+            proto: vec_of_strings!["HTTP", "CONNECT:80", "HTTPS", "CONNECT:25"],
+            ..Default::default()
+        },
+        Provider {
+            name: "api.good-proxies.ru",
+            url: "https://api.good-proxies.ru/getfree.php?count=1000&key=freeproxy",
+            ..Default::default()
+        },
+        Provider {
+            name: "ipaddress.com",
+            url: "https://www.ipaddress.com/proxy-list",
+            proto: vec_of_strings!["HTTP", "CONNECT:80", "HTTPS", "CONNECT:25"],
+            ..Default::default()
+        },
+        Provider {
+            name: "megaproxylist.net",
+            url: "https://www.megaproxylist.net/",
+            ..Default::default()
+        },
+        Provider {
+            name: "premiumproxy.net",
+            url: "https://premiumproxy.net/full-proxy-list",
+            pattern: r#"<font.*?>\s*(?P<ip>(?:\d+\.?){4})\s*<font.*?>\s*\:\s*</font>\s*(?P<port>\d+)"#,
+            ..Default::default()
+        },
+        Provider {
+            name: "proxypedia.org",
+            url: "https://proxypedia.org/",
+            new_urls: Some(|html, host| {
+                let mut urls = vec![];
+                let re = Regex::new(r#"href="(/free-proxy\/[^\d]+)"#).unwrap();
+                for cap in re.captures_iter(html) {
+                    let path = cap.get(1).unwrap().as_str();
+                    let new_url = format!("{}{}", host, path);
+                    urls.push(new_url);
+                }
+                urls
+            }),
+            ..Default::default()
+        },
+        /* proxyscan */
+        Provider {
+            name: "www.proxyscan.io/..http",
+            url: "https://www.proxyscan.io/download?type=http",
+            proto: vec_of_strings!["HTTP", "CONNECT:80", "HTTPS", "CONNECT:25"],
+            ..Default::default()
+        },
+        Provider {
+            name: "www.proxyscan.io/..https",
+            url: "https://www.proxyscan.io/download?type=https",
+            proto: vec_of_strings!["HTTP", "CONNECT:80", "HTTPS", "CONNECT:25"],
+            ..Default::default()
+        },
+        Provider {
+            name: "www.proxyscan.io/..socks4",
+            url: "https://www.proxyscan.io/download?type=socks4",
+            proto: vec_of_strings!["SOCKS4"],
+            ..Default::default()
+        },
+        Provider {
+            name: "www.proxyscan.io/..socks5",
+            url: "https://www.proxyscan.io/download?type=socks5",
+            proto: vec_of_strings!["SOCKS5"],
+            ..Default::default()
+        },
+        /* proxyscrape */
+        Provider {
+            name: "api.proxyscrape.com/..http",
+            url: "https://api.proxyscrape.com/?request=getproxies&proxytype=http",
+            proto: vec_of_strings!["HTTP", "CONNECT:80", "HTTPS", "CONNECT:25"],
+            ..Default::default()
+        },
+        Provider {
+            name: "api.proxyscrape.com/..socks4",
+            url: "https://api.proxyscrape.com/?request=getproxies&proxytype=socks4",
+            proto: vec_of_strings!["SOCKS4"],
+            ..Default::default()
+        },
+        Provider {
+            name: "api.proxyscrape.com/..socks5",
+            url: "https://api.proxyscrape.com/?request=getproxies&proxytype=socks5",
+            proto: vec_of_strings!["SOCKS5"],
+            ..Default::default()
+        },
+        /* github */
+        Provider {
+            name: "github.com/zevtyardt/proxy-list",
+            url: "https://raw.githubusercontent.com/zevtyardt/proxy-list/main/all.txt",
+            ..Default::default()
+        },
+        Provider {
+            name: "github.com/TheSpeedX/SOCKS-List/http.txt",
+            url: "https://raw.githubusercontent.com/TheSpeedX/SOCKS-List/master/http.txt",
+            proto: vec_of_strings!["HTTP", "CONNECT:80", "HTTPS", "CONNECT:25"],
+            ..Default::default()
+        },
+        Provider {
+            name: "github.com/TheSpeedX/SOCKS-List/socks4.txt",
+            url: "https://raw.githubusercontentent.com/TheSpeedX/SOCKS-List/master/socks4.txt",
+            proto: vec_of_strings!["SOCKS4"],
+            ..Default::default()
+        },
+        Provider {
+            name: "github.com/TheSpeedX/SOCKS-List/socks5.txt",
+            url: "https://raw.githubusercontent.com/TheSpeedX/SOCKS-List/master/socks5.txt",
+            proto: vec_of_strings!["SOCKS5"],
+            ..Default::default()
+        },
+    ];
+    all_providers.shuffle(&mut thread_rng());
 
-    let mut numbers = (0..num_providers).collect::<Vec<u32>>();
-    numbers.shuffle(&mut rand::thread_rng());
-
-    stream::iter(numbers)
-        .map(|n| async move {
-            match n {
-                0 => {
-                    let mut freeproxylist = freeproxylist::FreeProxyListNetProvider::default();
-                    freeproxylist.get_proxies().await;
-                }
-                1 => {
-                    let mut ipaddress_com = ipaddress_com::IpaddressComProvider::default();
-                    ipaddress_com.get_proxies().await;
-                }
-                2 => {
-                    let mut proxyscrape_http =
-                        proxyscrape::http::ProxyscrapeComHttpProvider::default();
-                    proxyscrape_http.get_proxies().await;
-                }
-                3 => {
-                    let mut proxyscrape_socks4 =
-                        proxyscrape::socks4::ProxyscrapeComSocks4Provider::default();
-                    proxyscrape_socks4.get_proxies().await;
-                }
-                4 => {
-                    let mut proxyscrape_socks5 =
-                        proxyscrape::socks5::ProxyscrapeComSocks5Provider::default();
-                    proxyscrape_socks5.get_proxies().await;
-                }
-                5 => {
-                    let mut zevtyardt_proxy_list =
-                        github::zevtyardt_proxy_list::GithubZevtyardtProxyListProvider::default();
-                    zevtyardt_proxy_list.get_proxies().await;
-                }
-                6 => {
-                    let mut thespeedx_http_list =
-                        github::thespeedx_socks_list::http::GithubTheSpeedXProxyListHttpProvider::default();
-                    thespeedx_http_list.get_proxies().await;
-                }
-                7 => {
-                    let mut thespeedx_socks4_list =
-                        github::thespeedx_socks_list::socks4::GithubTheSpeedXProxyListSocks4Provider::default();
-                    thespeedx_socks4_list.get_proxies().await;
-                }
-                8 => {
-                    let mut thespeedx_socks5_list =
-                        github::thespeedx_socks_list::socks5::GithubTheSpeedXProxyListSocks5Provider::default();
-                    thespeedx_socks5_list.get_proxies().await;
-                }
-                9 => {
-                    let mut proxyscan_http = proxyscan::http::ProxyscanIoHttpProvider::default();
-                    proxyscan_http.get_proxies().await;
-                }
-                10 => {
-                    let mut proxyscan_https = proxyscan::https::ProxyscanIoHttpsProvider::default();
-                    proxyscan_https.get_proxies().await;
-                }
-                11 => {
-                    let mut proxyscan_socks4 =
-                        proxyscan::socks4::ProxyscanIoSocks4Provider::default();
-                    proxyscan_socks4.get_proxies().await;
-                }
-                12 => {
-                    let mut proxyscan_socks5 =
-                        proxyscan::socks5::ProxyscanIoSocks5Provider::default();
-                    proxyscan_socks5.get_proxies().await;
-                }
-                13 => {
-                    let mut premiumproxy_net = premiumproxy_net::PremiumproxyNetProvider::default();
-                    premiumproxy_net.get_proxies().await;
-                }
-                _ => {}
-            }
-        })
+    stream::iter(all_providers)
+        .map(|f| async move { (f.name, f.get_proxies().await) })
         .buffer_unordered(num_conn)
+        .map(|(name, proxies)| update_stack(name, &proxies))
         .collect::<Vec<()>>()
         .await;
 }

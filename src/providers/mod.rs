@@ -152,9 +152,11 @@ pub async fn run_all_providers(num_conn: usize) {
     all_providers.shuffle(&mut thread_rng());
 
     stream::iter(all_providers)
-        .map(|f| async move { (f.name, f.get_proxies().await) })
+        .map(|f| async move {
+            let proxies = f.get_proxies().await;
+            update_stack(f.name, &proxies)
+        })
         .buffer_unordered(num_conn)
-        .map(|(name, proxies)| update_stack(name, &proxies))
         .collect::<Vec<()>>()
         .await;
 }

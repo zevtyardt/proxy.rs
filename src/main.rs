@@ -250,7 +250,7 @@ fn main() {
                     let mut interval = interval(Duration::from_secs(60));
                     loop {
                         interval.tick().await;
-                        tokio::task::spawn(providers::run_all_providers(2));
+                        tokio::task::spawn(providers::run_all_providers(3));
                     }
                 }));
             }

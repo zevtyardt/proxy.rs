@@ -25,7 +25,8 @@ Proxy.rs is a high-speed proxy tool built with Rust, featuring three main functi
 
 <details>
   <summary>List of proxy sources:</summary>
-
+  <br/>
+  
   - [x] `https://free-proxy-list.net/`
   - [x] `https://api.good-proxies.ru/getfree.php?count=1000&key=freeproxy`
   - [x] `https://www.ipaddress.com/proxy-list`

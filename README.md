@@ -26,27 +26,45 @@ Proxy.rs is a high-speed proxy tool built with Rust, featuring three main functi
 <details>
   <summary>List of proxy sources:</summary>
   <br/>
-  
-  - [x] `https://free-proxy-list.net/`
+ 
   - [x] `https://api.good-proxies.ru/getfree.php?count=1000&key=freeproxy`
-  - [x] `https://www.ipaddress.com/proxy-list`
-  - [x] `https://www.megaproxylist.net`
+  - [x] `https://api.proxyscrape.com/?request=getproxies&proxytype=http`
+  - [x] `https://api.proxyscrape.com/?request=getproxies&proxytype=socks4`
+  - [x] `https://api.proxyscrape.com/?request=getproxies&proxytype=socks5`
+  - [x] `https://free-proxy-list.net`
+  - [x] `https://openproxylist.xyz/http.txt`
   - [x] `https://premiumproxy.net/full-proxy-list`
-  - [x] `https://proxypedia.org`
-  - [x] `www.proxyscan.io`
-    - [x] `https://www.proxyscan.io/download?type=http`
-    - [x] `https://www.proxyscan.io/download?type=https`
-    - [x] `https://www.proxyscan.io/download?type=socks4`
-    - [x] `https://www.proxyscan.io/download?type=socks5`
-  - [x] `api.proxyscrape.com`
-    - [x] `https://api.proxyscrape.com/?request=getproxies&proxytype=http`
-    - [x] `https://api.proxyscrape.com/?request=getproxies&proxytype=socks4`
-    - [x] `https://api.proxyscrape.com/?request=getproxies&proxytype=socks5`
-  - [x] `github.com`
-    - [x] `https://raw.githubusercontent.com/zevtyardt/proxy-list/main/all.txt`
-    - [x] `https://raw.githubusercontent.com/TheSpeedX/SOCKS-List/master/http.txt`
-    - [x] `https://raw.githubusercontent.com/TheSpeedX/SOCKS-List/master/socks4.txt`
-    - [x] `https://raw.githubusercontent.com/TheSpeedX/SOCKS-List/master/socks5.txt`
+  - [x] `https://proxypedia.org/`
+  - [x] `https://proxyspace.pro/http.txt`
+  - [x] `https://proxyspace.pro/https.txt`
+  - [x] `https://raw.githubusercontent.com/B4RC0DE-TM/proxy-list/main/HTTP.txt`
+  - [x] `https://raw.githubusercontent.com/HyperBeats/proxy-list/main/http.txt`
+  - [x] `https://raw.githubusercontent.com/TheSpeedX/SOCKS-List/master/http.txt`
+  - [x] `https://raw.githubusercontent.com/TheSpeedX/SOCKS-List/master/socks5.txt`
+  - [x] `https://raw.githubusercontent.com/almroot/proxylist/master/list.txt`
+  - [x] `https://raw.githubusercontent.com/andigwandi/free-proxy/main/proxy_list.txt`
+  - [x] `https://raw.githubusercontent.com/aslisk/proxyhttps/main/https.txt`
+  - [x] `https://raw.githubusercontent.com/fahimscirex/proxybd/master/proxylist/http.txt`
+  - [x] `https://raw.githubusercontent.com/TheSpeedX/PROXY-List/blob/master/socks4.txt`
+  - [x] `https://raw.githubusercontent.com/hendrikbgr/Free-Proxy-Repo/master/proxy_list.txt`
+  - [x] `https://raw.githubusercontent.com/jetkai/proxy-list/main/online-proxies/txt/proxies-http.txt`
+  - [x] `https://raw.githubusercontent.com/jetkai/proxy-list/main/online-proxies/txt/proxies-https.txt`
+  - [x] `https://raw.githubusercontent.com/mertguvencli/http-proxy-list/main/proxy-list/data.txt`
+  - [x] `https://raw.githubusercontent.com/miyukii-chan/proxy-list/master/proxies/http.txt`
+  - [x] `https://raw.githubusercontent.com/mmpx12/proxy-list/master/http.txt`
+  - [x] `https://raw.githubusercontent.com/mmpx12/proxy-list/master/https.txt`
+  - [x] `https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/http.txt`
+  - [x] `https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/socks4.txt`
+  - [x] `https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/socks5.txt`
+  - [x] `https://raw.githubusercontent.com/zevtyardt/proxy-list/main/all.txt`
+  - [x] `https://www.ipaddress.com/proxy-list`
+  - [x] `https://www.megaproxylist.net/`
+  - [x] `https://www.proxyscan.io/download?type=http`
+  - [x] `https://www.proxyscan.io/download?type=https`
+  - [x] `https://www.proxyscan.io/download?type=socks4`
+  - [x] `https://www.proxyscan.io/download?type=socks5`
+
+  **total sources: 36**
 
 </details>
 

@@ -6,7 +6,6 @@
 use argument::GrabArgs;
 use checker::Checker;
 use clap::Parser;
-use futures_util::{stream, StreamExt};
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
 use proxy::Proxy;
@@ -18,9 +17,11 @@ use tokio::{
     fs::File,
     io::{stdout, AsyncBufReadExt, AsyncWrite, AsyncWriteExt, BufReader},
     runtime,
-    sync::mpsc::{self, Sender},
-    task,
-    time::{self, interval},
+    sync::{
+        mpsc::{self, Sender},
+        Semaphore,
+    },
+    task, time,
 };
 
 use crate::{
@@ -43,60 +44,55 @@ lazy_static! {
     static ref STOP_FIND_LOOP: Arc<Mutex<bool>> = Arc::new(Mutex::new(false));
 }
 
+struct ProxiesIter;
+impl Iterator for ProxiesIter {
+    type Item = Proxy; //(String, u16, Vec<String>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Ok(proxy) = PROXIES.pop() {
+            return Some(proxy);
+        }
+        None
+    }
+}
+
 async fn handle_grab_command(args: GrabArgs, tx: Sender<Option<Proxy>>) {
     let expected_countries = args.countries;
 
     loop {
-        if let Ok((host, port, expected_types)) = PROXIES.pop() {
-            if let Some(proxy) = proxy::Proxy::create(host.as_str(), port, expected_types).await {
-                if !expected_countries.is_empty()
-                    && !expected_countries.contains(&proxy.geo.iso_code)
-                {
-                    continue;
-                }
-                if tx.send(Some(proxy)).await.is_err() {
-                    return;
-                }
+        let proxies = ProxiesIter {};
+        for proxy in proxies {
+            //if let Some(proxy) = proxy::Proxy::create(host.as_str(), port, expected_types).await {
+            if !expected_countries.is_empty() && !expected_countries.contains(&proxy.geo.iso_code) {
+                continue;
             }
+            if tx.send(Some(proxy)).await.is_err() {
+                return;
+            }
+            //}
         }
     }
 }
 
 async fn handle_find_command(checker: Checker, max_conn: usize, tx: Sender<Option<Proxy>>) {
     while !*STOP_FIND_LOOP.lock() {
-        let mut proxies = Vec::new();
-        while let Ok((host, port, expected_types)) = PROXIES.pop() {
-            if let Some(proxy) = Proxy::create(host.as_str(), port, expected_types).await {
-                proxies.push(proxy)
-            }
-        }
-
-        if !proxies.is_empty() {
-            let stime = time::Instant::now();
-            let ret = stream::iter(proxies)
-                .map(|mut proxy| {
-                    let mut checker = checker.clone();
-                    let tx = tx.clone();
-                    task::spawn(async move {
-                        if checker.check_proxy(&mut proxy).await {
-                            tx.send(Some(proxy)).await.unwrap();
-                        }
-                    })
-                })
-                .map(|f| async { f.await.unwrap_or(()) })
-                .buffer_unordered(max_conn)
-                .collect::<Vec<()>>()
-                .await;
-
-            log::info!(
-                "Finished checking {} proxies. Runtime {:?}",
-                ret.len(),
-                stime.elapsed()
-            );
-
+        let sem = Arc::new(Semaphore::new(max_conn));
+        let proxies = ProxiesIter {};
+        for mut proxy in proxies {
             if *STOP_FIND_LOOP.lock() {
                 tx.send(None).await.unwrap();
+                return;
             }
+            let permit = Arc::clone(&sem).acquire_owned().await;
+            let mut checker = checker.clone();
+            let tx = tx.clone();
+
+            task::spawn(async move {
+                let _ = permit;
+                if checker.check_proxy(&mut proxy).await {
+                    tx.send(Some(proxy)).await.unwrap();
+                }
+            });
         }
     }
 }
@@ -114,7 +110,9 @@ async fn handle_file_input(files: Vec<PathBuf>) {
                         let port = cap.get(2).unwrap().as_str();
 
                         if let Ok(port) = port.parse::<u16>() {
-                            PROXIES.push((ip.to_string(), port, vec![])).unwrap();
+                            if let Some(proxy) = Proxy::create(ip, port, vec![]).await {
+                                PROXIES.push(proxy).unwrap()
+                            }
                         };
                     }
                 }
@@ -226,7 +224,6 @@ fn main() {
                     tasks.push(task::spawn(async move {
                         checker::check_judges(verify_ssl, ext_ip, expected_types).await;
                     }));
-
                     files.extend(serve_args.files.clone());
 
                     let tx = tx.clone();
@@ -247,10 +244,11 @@ fn main() {
 
                 /* providers */
                 tasks.push(tokio::task::spawn(async {
-                    let mut interval = interval(Duration::from_secs(60));
+                    let dur = Duration::from_secs(60);
                     loop {
-                        interval.tick().await;
-                        tokio::task::spawn(providers::run_all_providers(3));
+                        providers::run_all_providers(3).await;
+                        log::debug!("Next cycle starts at {:?}", dur);
+                        time::sleep(dur).await;
                     }
                 }));
             }

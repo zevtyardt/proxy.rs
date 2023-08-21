@@ -1,14 +1,14 @@
 use std::{collections::BTreeMap, process::exit, sync::Arc, time::Duration};
 
-use futures_util::{stream, StreamExt};
+use dashmap::{DashMap, DashSet};
+use futures_util::{stream::FuturesUnordered, StreamExt};
 use lazy_static::lazy_static;
-use parking_lot::{Condvar, Mutex};
-use rand::seq::SliceRandom;
+use rand::{seq::SliceRandom, thread_rng};
 use regex::Regex;
-use tokio::{spawn, time};
+use tokio::{sync::Semaphore, time};
 
 use crate::{
-    judge::{get_judges, Judge},
+    judge::{check_judge_host, get_judges, Judge},
     negotiators::{
         connect_25::Connect25Negotiator, connect_80::Connect80Negotiator, http::HttpNegotiator,
         https::HttpsNegotiator, socks4::Socks4Negotiator, socks5::Socks5Negotiator,
@@ -23,10 +23,14 @@ use crate::{
 };
 
 lazy_static! {
-    static ref DISABLE_PROTOCOLS: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
-    static ref JUDGES: Arc<Mutex<BTreeMap<String, Vec<Judge>>>> =
-        Arc::new(Mutex::new(BTreeMap::new()));
-    static ref CV: Arc<Condvar> = Arc::new(Condvar::new());
+    static ref ENABLE_PROTOCOLS: DashSet<String> = {
+        let mut set = DashSet::new();
+        set.extend(vec_of_strings!["HTTP", "CONNECT:80", "SOCKS4", "SOCKS5"]);
+        set.insert(String::from("HTTPS"));
+        set.insert(String::from("CONNECT:25"));
+        set
+    };
+    static ref JUDGES: DashMap<String, Vec<Judge>> = DashMap::new();
 }
 
 pub async fn check_judges(ssl: bool, ext_ip: String, mut expected_types: Vec<String>) {
@@ -45,71 +49,74 @@ pub async fn check_judges(ssl: bool, ext_ip: String, mut expected_types: Vec<Str
         expected_types.push("HTTP".to_string());
     }
 
-    stream::iter(get_judges())
-        .map(|mut judge| {
-            judge.verify_ssl = ssl;
+    let mut futures = FuturesUnordered::new();
+    let sem = Arc::new(Semaphore::new(20));
 
-            let ext_ip = ext_ip.clone();
-            let expected_types = expected_types.clone();
-
-            spawn(async move {
-                let scheme = judge.scheme.clone();
-                if !expected_types.contains(&scheme) {
-                    return;
-                }
-
-                judge.check_host(ext_ip.as_str()).await;
-                if judge.is_working {
-                    let mut judges_by_scheme = JUDGES.lock();
-                    if !judges_by_scheme.contains_key(&scheme) {
-                        judges_by_scheme.insert(scheme.clone(), vec![]);
-                    }
-                    if let Some(value) = judges_by_scheme.get_mut(&scheme) {
-                        value.push(judge.clone());
-                    }
-                }
-            })
-        })
-        .map(|f| async { f.await.unwrap_or(()) })
-        .buffer_unordered(20)
-        .collect::<Vec<()>>()
-        .await;
+    for mut judge in get_judges() {
+        let permit = Arc::clone(&sem).acquire_owned().await;
+        let expected_types = expected_types.clone();
+        let ext_ip = ext_ip.clone();
+        let ssl = ssl;
+        futures.push(tokio::spawn(async move {
+            let _ = permit;
+            if expected_types.contains(&judge.scheme) {
+                judge.verify_ssl = ssl;
+                check_judge_host(&mut judge, &ext_ip).await;
+            }
+            judge
+        }));
+    }
 
     let mut working = 0;
-    let mut no_judges = vec![];
-    for (scheme, proto) in [
-        (
-            "HTTP",
-            vec_of_strings!["HTTP", "CONNECT:80", "SOCKS4", "SOCKS5"],
-        ),
-        ("HTTPS", vec_of_strings!["HTTPS"]),
-        ("SMTP", vec_of_strings!["CONNECT:25"]),
-    ] {
-        if !expected_types.contains(&scheme.to_string()) {
-            continue;
-        }
-        let judges_by_scheme = JUDGES.lock();
-        if let Some(value) = judges_by_scheme.get(&scheme.to_string()) {
-            if !value.is_empty() {
-                working += value.len();
-                continue;
+    let no_judges = DashSet::new();
+    let disable_protocols = DashSet::new();
+
+    while let Some(Ok(judge)) = futures.next().await {
+        if judge.is_working {
+            if !JUDGES.contains_key(&judge.scheme) {
+                JUDGES.insert(judge.scheme.clone(), vec![]);
+            }
+            if let Some(mut v) = JUDGES.get_mut(&judge.scheme) {
+                v.push(judge);
+                working += 1;
+            }
+        } else {
+            if expected_types.contains(&judge.scheme) {
+                no_judges.insert(judge.scheme.clone());
+            }
+
+            if judge.scheme == "HTTP" {
+                for protocol in vec_of_strings!["HTTP", "CONNECT:80", "SOCKS4", "SOCKS5"] {
+                    ENABLE_PROTOCOLS.remove(&protocol);
+                    disable_protocols.insert(protocol);
+                }
+            } else if judge.scheme == "SMTP" {
+                let protocol = String::from("CONNECT:25");
+                ENABLE_PROTOCOLS.remove(&protocol);
+                disable_protocols.insert(protocol);
+            } else {
+                let protocol = String::from("HTTPS");
+                ENABLE_PROTOCOLS.remove(&protocol);
+                disable_protocols.insert(protocol);
             }
         }
-        no_judges.push(scheme);
-        let mut disable_protocols = DISABLE_PROTOCOLS.lock();
-        disable_protocols.extend(proto);
-        CV.notify_one();
     }
 
     if !no_judges.is_empty() {
         log::warn!(
-            "Not found judges for the {:?} protocol. Checking proxy on protocols {:?} is disabled.",
-            no_judges,
-            DISABLE_PROTOCOLS.lock()
+            "Not found judges for the {:?} schemes. Checking proxy on protocols {:?} is disabled.",
+            no_judges
+                .iter()
+                .map(|f| f.to_string())
+                .collect::<Vec<String>>(),
+            disable_protocols
+                .iter()
+                .map(|f| f.to_string())
+                .collect::<Vec<String>>(),
         );
     }
-    if working == 0 {
-        log::error!("Not found judges!");
+    if working == 0 || expected_types.into_iter().all(|f| no_judges.contains(&f)) {
+        log::error!("No judges found!");
         while *DOWNLOADING.lock() {
             continue;
         }
@@ -150,7 +157,7 @@ impl Checker {
         let mut result = vec![];
         for proto in &expected_types {
             if self.expected_types.contains(proto)
-                && !DISABLE_PROTOCOLS.lock().contains(proto)
+                && ENABLE_PROTOCOLS.contains(proto)
                 && (self.expected_countries.is_empty()
                     || self.expected_countries.contains(&proxy.geo.iso_code))
             {
@@ -176,50 +183,51 @@ impl Checker {
 
     pub async fn check_proto(&mut self, proxy: &mut Proxy, proto: &String) -> bool {
         proxy.negotiator_proto = proto.to_string();
-        let judge = self.get_judge(proto);
-        proxy.log(format!("Selected judge: {}", judge).as_str(), None, None);
-
         let mut is_working = false;
-        if proto != "HTTPS" && !proxy.connect().await {
-            proxy.close().await;
-            return false;
-        }
+        if let Some(judge) = self.get_judge(proto) {
+            proxy.log(format!("Selected judge: {}", judge).as_str(), None, None);
 
-        let (negotiate_success, use_full_path, check_anon_lvl) =
-            self.negotiate(proxy, &judge, proto).await;
-        if !negotiate_success {
-            proxy.close().await;
-            return false;
-        }
-
-        if proto == "CONNECT:25" {
-            proxy.types.push((proto.to_string(), None));
-            return true;
-        }
-
-        let path = judge.url.path().to_string();
-        let (raw_request, headers, rv) =
-            self.build_raw_request(&judge.host, &path, use_full_path, None);
-
-        proxy.send(raw_request.as_bytes()).await;
-        if let Some(data) = proxy.recv_all().await {
-            proxy.log("Request: success", None, None);
-            let mut anonimity_lvl = None;
-            let response = ResponseParser::parse(data.as_slice());
-
-            //log::warn!("=====\n{raw_request}\n{0}", response.raw);
-
-            if self.get_response_status(&response, headers, rv) {
-                if check_anon_lvl {
-                    anonimity_lvl = Some(self.get_anonimity_level(&response, &judge.marks));
-                }
-
-                is_working = true;
-                proxy.types.push((proto.to_string(), anonimity_lvl));
+            if proto != "HTTPS" && !proxy.connect().await {
+                proxy.close().await;
+                return false;
             }
-            proxy.close().await;
-        } else {
-            proxy.log("Request: failed", None, Some("request_failed".to_string()));
+
+            let (negotiate_success, use_full_path, check_anon_lvl) =
+                self.negotiate(proxy, &judge, proto).await;
+            if !negotiate_success {
+                proxy.close().await;
+                return false;
+            }
+
+            if proto == "CONNECT:25" {
+                proxy.types.push((proto.to_string(), None));
+                return true;
+            }
+
+            let path = judge.url.path().to_string();
+            let (raw_request, headers, rv) =
+                self.build_raw_request(&judge.host, &path, use_full_path, None);
+
+            proxy.send(raw_request.as_bytes()).await;
+            if let Some(data) = proxy.recv_all().await {
+                proxy.log("Request: success", None, None);
+                let mut anonimity_lvl = None;
+                let response = ResponseParser::parse(data.as_slice());
+
+                //log::warn!("=====\n{raw_request}\n{0}", response.raw);
+
+                if self.get_response_status(&response, headers, rv) {
+                    if check_anon_lvl {
+                        anonimity_lvl = Some(self.get_anonimity_level(&response, &judge.marks));
+                    }
+
+                    is_working = true;
+                    proxy.types.push((proto.to_string(), anonimity_lvl));
+                }
+                proxy.close().await;
+            } else {
+                proxy.log("Request: failed", None, Some("request_failed".to_string()));
+            }
         }
 
         is_working
@@ -374,7 +382,7 @@ impl Checker {
         (request, headers, rv)
     }
 
-    fn get_judge(&mut self, proto: &str) -> Judge {
+    fn get_judge(&mut self, proto: &str) -> Option<Judge> {
         let mut scheme = "HTTP".to_string();
         if proto.eq("HTTPS") {
             scheme = "HTTPS".to_string();
@@ -382,22 +390,24 @@ impl Checker {
             scheme = "SMTP".to_string();
         }
 
-        let mut judges = JUDGES.lock();
-        while !judges.contains_key(&scheme) {
-            let wait = CV.wait_for(&mut judges, Duration::from_secs(10));
-            if wait.timed_out() {
+        let t = time::Instant::now();
+        while !JUDGES.contains_key(&scheme) {
+            if t.elapsed() >= Duration::from_secs(15) {
                 log::error!("Timeout error: no judges found");
-
                 while *DOWNLOADING.lock() {
                     continue;
                 }
-                std::process::exit(0)
+                exit(0)
             }
         }
 
-        let judges = judges.get(&scheme).unwrap();
-        let mut rng = rand::thread_rng();
-        judges.choose(&mut rng).unwrap().clone()
+        if let Some(v) = JUDGES.get_mut(&scheme) {
+            if let Some(judge) = v.choose(&mut thread_rng()) {
+                return Some(judge.clone());
+            }
+        }
+
+        None
     }
 }
 

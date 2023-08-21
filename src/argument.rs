@@ -187,4 +187,3 @@ pub struct ServeArgs {
     #[arg(short, long, num_args(1..))]
     pub countries: Vec<String>,
 }
-

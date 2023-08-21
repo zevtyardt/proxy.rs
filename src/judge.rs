@@ -1,5 +1,6 @@
 use hyper::{client::HttpConnector, Body, Client, Request, StatusCode};
 use hyper_tls::HttpsConnector;
+use rand::{seq::SliceRandom, thread_rng};
 use std::{collections::BTreeMap, time::Duration};
 use tokio::time::timeout;
 use url::Url;
@@ -37,76 +38,7 @@ impl Judge {
             verify_ssl: false,
         }
     }
-
-    pub async fn check_host(&mut self, real_ext_ip: &str) -> bool {
-        if self.scheme.to_uppercase().eq("SMTP") {
-            self.is_working = true;
-        } else {
-            let resolver = Resolver::new();
-            let c_host = self.url.host_str().unwrap().to_string();
-            let ip_address = resolver.resolve(c_host).await;
-
-            if !resolver.host_is_ip(ip_address.as_str()) {
-                return false;
-            }
-
-            self.ip_address = Some(ip_address);
-
-            // custom connector
-            let connector = hyper_tls::native_tls::TlsConnector::builder()
-                .danger_accept_invalid_certs(!self.verify_ssl)
-                .danger_accept_invalid_hostnames(!self.verify_ssl)
-                .build()
-                .map(|tls| {
-                    let mut http = HttpConnector::new();
-                    http.enforce_http(false);
-                    HttpsConnector::from((http, tls.into()))
-                })
-                .unwrap();
-
-            let client = Client::builder().build::<_, Body>(connector);
-            let request = Request::builder()
-                .uri(self.url.to_string())
-                .header("User-Agent", random_useragent(true))
-                .body(Body::empty())
-                .unwrap();
-
-            let task = timeout(
-                Duration::from_secs(self.timeout as u64),
-                client.request(request),
-            );
-
-            match task.await {
-                Ok(task_ok) => match task_ok {
-                    Ok(response) => {
-                        if StatusCode::OK == response.status() {
-                            if let Ok(body) = hyper::body::to_bytes(response.into_body()).await {
-                                let body_str = String::from_utf8_lossy(&body);
-                                self.is_working = body_str
-                                    .to_lowercase()
-                                    .contains(&real_ext_ip.to_lowercase());
-                                self.marks
-                                    .insert("via".into(), body_str.matches("via").count());
-                                self.marks
-                                    .insert("proxy".into(), body_str.matches("proxy").count());
-                            }
-                        }
-                    }
-                    Err(err) => log::error!("{}: Error: {}", self, err),
-                },
-                Err(_) => log::error!("{}: Timeout error", self),
-            };
-        }
-
-        if self.is_working {
-            log::debug!("{}: is working", self);
-        } else {
-            log::debug!("{}: is not working", self)
-        }
-        self.is_working
-    }
 }
-
 // Struct representation
 impl std::fmt::Display for Judge {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -114,9 +46,78 @@ impl std::fmt::Display for Judge {
     }
 }
 
+pub async fn check_judge_host(judge: &mut Judge, real_ext_ip: &str) -> bool {
+    if judge.scheme.to_uppercase().eq("SMTP") {
+        judge.is_working = true;
+    } else {
+        let resolver = Resolver::new();
+        let c_host = judge.url.host_str().unwrap().to_string();
+        let ip_address = resolver.resolve(c_host).await;
+
+        if !resolver.host_is_ip(ip_address.as_str()) {
+            return false;
+        }
+
+        judge.ip_address = Some(ip_address);
+
+        // custom connector
+        let connector = hyper_tls::native_tls::TlsConnector::builder()
+            .danger_accept_invalid_certs(!judge.verify_ssl)
+            .danger_accept_invalid_hostnames(!judge.verify_ssl)
+            .build()
+            .map(|tls| {
+                let mut http = HttpConnector::new();
+                http.enforce_http(false);
+                HttpsConnector::from((http, tls.into()))
+            })
+            .unwrap();
+
+        let client = Client::builder().build::<_, Body>(connector);
+        let request = Request::builder()
+            .uri(judge.url.to_string())
+            .header("User-Agent", random_useragent(true))
+            .body(Body::empty())
+            .unwrap();
+
+        let task = timeout(
+            Duration::from_secs(judge.timeout as u64),
+            client.request(request),
+        );
+
+        match task.await {
+            Ok(task_ok) => match task_ok {
+                Ok(response) => {
+                    if StatusCode::OK == response.status() {
+                        if let Ok(body) = hyper::body::to_bytes(response.into_body()).await {
+                            let body_str = String::from_utf8_lossy(&body);
+                            judge.is_working = body_str
+                                .to_lowercase()
+                                .contains(&real_ext_ip.to_lowercase());
+                            judge
+                                .marks
+                                .insert("via".into(), body_str.matches("via").count());
+                            judge
+                                .marks
+                                .insert("proxy".into(), body_str.matches("proxy").count());
+                        }
+                    }
+                }
+                Err(err) => log::error!("{}: Error: {}", judge, err),
+            },
+            Err(_) => log::error!("{}: Timeout error", judge),
+        };
+    }
+
+    if judge.is_working {
+        log::debug!("{}: is working", judge);
+    } else {
+        log::debug!("{}: is not working", judge)
+    }
+    judge.is_working
+}
+
 pub fn get_judges() -> Vec<Judge> {
-    let mut judges = vec![];
-    for url_judge in [
+    let mut judges = vec![
         "http://httpheader.net/azenv.php",
         "https://httpbin.org/get?show_env",
         "smtp://smtp.gmail.com",
@@ -133,9 +134,10 @@ pub fn get_judges() -> Vec<Judge> {
         "http://www3.wind.ne.jp/hassii/env.cgi",
         "http://shinh.org/env.cgi",
         "http://www2t.biglobe.ne.jp/~take52/test/env.cgi",
-    ] {
-        let judge = Judge::new(url_judge);
-        judges.push(judge)
-    }
+    ]
+    .iter()
+    .map(|url| Judge::new(url))
+    .collect::<Vec<Judge>>();
+    judges.shuffle(&mut thread_rng());
     judges
 }

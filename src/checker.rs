@@ -3,6 +3,7 @@ use std::{collections::BTreeMap, process::exit, sync::Arc, time::Duration};
 use dashmap::{DashMap, DashSet};
 use futures_util::{stream::FuturesUnordered, StreamExt};
 use lazy_static::lazy_static;
+use parking_lot::Mutex;
 use rand::{seq::SliceRandom, thread_rng};
 use regex::Regex;
 use tokio::{sync::Semaphore, time};
@@ -23,13 +24,7 @@ use crate::{
 };
 
 lazy_static! {
-    static ref ENABLE_PROTOCOLS: DashSet<String> = {
-        let mut set = DashSet::new();
-        set.extend(vec_of_strings!["HTTP", "CONNECT:80", "SOCKS4", "SOCKS5"]);
-        set.insert(String::from("HTTPS"));
-        set.insert(String::from("CONNECT:25"));
-        set
-    };
+    static ref ENABLE_PROTOCOLS: Mutex<DashSet<String>> = Mutex::new(DashSet::new());
     static ref JUDGES: DashMap<String, Vec<Judge>> = DashMap::new();
 }
 
@@ -87,28 +82,43 @@ pub async fn check_judges(ssl: bool, ext_ip: String, mut expected_types: Vec<Str
 
             if judge.scheme == "HTTP" {
                 for protocol in vec_of_strings!["HTTP", "CONNECT:80", "SOCKS4", "SOCKS5"] {
-                    ENABLE_PROTOCOLS.remove(&protocol);
                     disable_protocols.insert(protocol);
                 }
             } else if judge.scheme == "SMTP" {
                 let protocol = String::from("CONNECT:25");
-                ENABLE_PROTOCOLS.remove(&protocol);
                 disable_protocols.insert(protocol);
             } else {
                 let protocol = String::from("HTTPS");
-                ENABLE_PROTOCOLS.remove(&protocol);
                 disable_protocols.insert(protocol);
             }
         }
     }
 
+    for types in expected_types.iter() {
+        if JUDGES.contains_key(types) {
+            ENABLE_PROTOCOLS.lock().extend(match types.as_str() {
+                "HTTP" => vec_of_strings!["HTTP", "CONNECT:80", "SOCKS4", "SOCKS5"],
+                "HTTPS" => vec_of_strings!["HTTPS"],
+                "SMTP" => vec_of_strings!["CONNECT:25"],
+                _ => vec![],
+            })
+        }
+    }
+    let no_judges: Vec<String> = no_judges
+        .iter()
+        .filter_map(|f| {
+            let k = f.to_string();
+            if JUDGES.contains_key(&k) {
+                return None;
+            }
+            Some(k)
+        })
+        .collect();
+
     if !no_judges.is_empty() {
         log::warn!(
             "Not found judges for the {:?} schemes. Checking proxy on protocols {:?} is disabled.",
-            no_judges
-                .iter()
-                .map(|f| f.to_string())
-                .collect::<Vec<String>>(),
+            no_judges,
             disable_protocols
                 .iter()
                 .map(|f| f.to_string())
@@ -157,7 +167,7 @@ impl Checker {
         let mut result = vec![];
         for proto in &expected_types {
             if self.expected_types.contains(proto)
-                && ENABLE_PROTOCOLS.contains(proto)
+                && ENABLE_PROTOCOLS.lock().contains(proto)
                 && (self.expected_countries.is_empty()
                     || self.expected_countries.contains(&proxy.geo.iso_code))
             {

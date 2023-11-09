@@ -3,6 +3,8 @@ use crate::utils::get_data_dir;
 pub mod downloader;
 pub mod lookup;
 
+pub const GEOLITEDB: &str = "GeoLite2-City.mmdb";
+
 #[derive(Debug)]
 pub struct GeoData {
     pub iso_code: &'static str,
@@ -31,6 +33,6 @@ impl GeoData {
 }
 
 pub fn geolite_exists() -> bool {
-    let geofile = get_data_dir(Some("geolite.db"));
+    let geofile = get_data_dir(Some(GEOLITEDB));
     geofile.exists()
 }

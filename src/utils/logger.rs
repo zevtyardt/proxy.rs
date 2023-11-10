@@ -1,4 +1,7 @@
+use anyhow::Context;
 use owo_colors::{OwoColorize, Style};
+
+use crate::debug_error;
 
 pub fn setup_logger(level: Option<log::LevelFilter>) -> anyhow::Result<()> {
     fern::Dispatch::new()
@@ -28,6 +31,7 @@ pub fn setup_logger(level: Option<log::LevelFilter>) -> anyhow::Result<()> {
             },
         )
         .chain(std::io::stdout())
-        .apply()?;
+        .apply()
+        .context(debug_error!())?;
     Ok(())
 }

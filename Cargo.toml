@@ -20,5 +20,5 @@ hyper-tls = "0.5.0"
 indicatif = { version = "0.17.7", features = ["rayon"] }
 log = "0.4.20"
 owo-colors = "3.5.0"
-tokio = { version = "1.33.0", features = ["rt-multi-thread"] }
+tokio = { version = "1.33.0", features = ["rt-multi-thread", "fs"] }
 

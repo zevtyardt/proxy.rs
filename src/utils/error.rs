@@ -1,5 +1,5 @@
 #[macro_export]
-macro_rules! debug_error {
+macro_rules! error_context {
     () => {
         concat!("at ", file!(), " line ", line!(), " column ", column!())
     };

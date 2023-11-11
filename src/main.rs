@@ -1,25 +1,32 @@
 #![allow(dead_code)]
-#![allow(unused)]
+#![allow(unused_variables)]
 
-use std::process::exit;
+use anyhow::Context;
 
 use crate::{
-    geolite::{downloader::download_geolite_file, geolite_exists, lookup::geo_lookup},
-    utils::logger::setup_logger,
+    geolite::{check_geolite_db, downloader::download_geolite_db},
+    utils::{logger::setup_logger, tokio_runtime},
 };
 
 mod geolite;
 mod proxies;
+mod resolver;
 mod utils;
 
-fn main() -> anyhow::Result<()> {
-    setup_logger(Some(log::LevelFilter::Debug));
+fn start_app() -> anyhow::Result<()> {
+    tokio_runtime()?.block_on(async {
+        setup_logger(Some(log::LevelFilter::Debug)).context(error_context!())?;
+        if !check_geolite_db().await.context(error_context!())? {
+            download_geolite_db().await.context(error_context!())?;
+            std::process::exit(0);
+        }
 
-    if !geolite_exists() {
-        download_geolite_file()?;
+        Ok(())
+    })
+}
+
+fn main() {
+    if let Err(err) = start_app() {
+        log::error!("{:?}", err)
     }
-    let proxy = geo_lookup("114.142.169.20");
-    log::info!("{:#?}", proxy);
-
-    Ok(())
 }

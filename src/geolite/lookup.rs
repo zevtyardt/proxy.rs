@@ -1,19 +1,39 @@
 use std::net::IpAddr;
 
 use anyhow::Context;
+use async_once::AsyncOnce;
+use lazy_static::lazy_static;
 use maxminddb::{geoip2::City, Reader};
 
 use crate::{error_context, utils::get_data_dir};
 
 use super::{GeoData, GEOLITEDB};
 
-pub async fn geo_lookup(ip: IpAddr) -> anyhow::Result<GeoData> {
+lazy_static! {
+    static ref GEOLITE: AsyncOnce<Option<Reader<Vec<u8>>>> = AsyncOnce::new(async {
+        if let Ok(db) = open_geolite_db().await.context(error_context!()) {
+            return Some(db);
+        }
+        None
+    });
+}
+
+async fn open_geolite_db() -> anyhow::Result<Reader<Vec<u8>>> {
     let geofile = get_data_dir(Some(GEOLITEDB))
         .await
         .context(error_context!())?;
-
-    let mut geodata = GeoData::default();
     let db = Reader::open_readfile(geofile).context(error_context!())?;
+    Ok(db)
+}
+
+pub async fn geo_lookup(ip: IpAddr) -> anyhow::Result<GeoData> {
+    let mut geodata = GeoData::default();
+    let db = GEOLITE.get().await.as_ref();
+    if db.is_none() {
+        anyhow::bail!(format!("error when trying to open {} file", GEOLITEDB))
+    }
+    let db = db.unwrap();
+
     let lookup = db.lookup::<City>(ip).context(error_context!())?;
 
     if let Some(country) = &lookup.country {

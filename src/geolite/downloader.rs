@@ -53,6 +53,6 @@ pub async fn download_geolite_db() -> anyhow::Result<()> {
         }
     }
     bar.finish();
-
-    Ok(())
+    log::info!("download is complete, exiting");
+    std::process::exit(0)
 }

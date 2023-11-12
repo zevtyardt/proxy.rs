@@ -13,11 +13,13 @@ authors = ["zevtyardt"]
 
 [dependencies]
 anyhow = "1.0.75"
+async_once = "0.2.6"
 dirs = "5.0.1"
 fern = "0.6.2"
 hyper = { version = "0.14.27", features = ["full"] }
 hyper-tls = "0.5.0"
 indicatif = { version = "0.17.7", features = ["rayon"] }
+lazy_static = "1.4.0"
 log = "0.4.20"
 maxminddb = "0.23.0"
 owo-colors = "3.5.0"

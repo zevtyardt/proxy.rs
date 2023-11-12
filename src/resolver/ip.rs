@@ -1,11 +1,24 @@
 use std::net::IpAddr;
 
 use anyhow::Context;
+use async_once::AsyncOnce;
 use hyper::{Body, Request};
+use lazy_static::lazy_static;
 
 use crate::{error_context, utils::hyper_client};
 
-pub async fn my_ip() -> anyhow::Result<IpAddr> {
+lazy_static! {
+    pub static ref MY_IP: AsyncOnce<IpAddr> = AsyncOnce::new(async {
+        let ip = my_ip().await.context(error_context!());
+        if let Err(err) = ip {
+            log::error!("{:?}", err);
+            std::process::exit(0);
+        }
+        ip.unwrap()
+    });
+}
+
+async fn my_ip() -> anyhow::Result<IpAddr> {
     let public_ip_source = vec![
         "https://wtfismyip.com/text",
         "http://api.ipify.org/",

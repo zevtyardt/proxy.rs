@@ -1,8 +1,7 @@
-use std::fs::remove_dir_all;
-
 use anyhow::Context;
+use tokio::fs::remove_dir;
 
-use crate::{error_context, geolite::lookup::geo_lookup, resolver::ip::MY_IP, utils::get_data_dir};
+use crate::{error_context, geolite::lookup::geo_lookup, resolver::ip::my_ip, utils::get_data_dir};
 
 pub mod downloader;
 pub mod lookup;
@@ -36,14 +35,16 @@ pub async fn check_geolite_db() -> anyhow::Result<bool> {
         .context(error_context!())?;
 
     if geofile.is_dir() {
-        remove_dir_all(geofile.as_path()).context(error_context!())?;
+        remove_dir(geofile.as_path())
+            .await
+            .context(error_context!())?;
     }
     if !geofile.is_file() {
         return Ok(false);
     }
 
-    let my_ip = MY_IP.get().await;
-    if let Err(err) = geo_lookup(*my_ip).await {
+    let ip = my_ip().await.context(error_context!())?;
+    if let Err(err) = geo_lookup(ip).await {
         log::error!("{:?}", err);
         return Ok(false);
     }

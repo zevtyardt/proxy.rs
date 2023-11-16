@@ -20,12 +20,13 @@ pub async fn download_geolite_db() -> anyhow::Result<()> {
     let bar = ProgressBar::new(0);
     bar.set_style(ProgressStyle::with_template(
         format!(
-            "{}  Downloading GeoLite2-City.mmdb {} {{percent}}% {{bytes}}/{{total_bytes}} ({{bytes_per_sec}}, {{eta}})",
+            "{}  proxy_rs::geolite::downloader {} Downloading {{percent}}% {{bytes}}/{{total_bytes}} ({{bytes_per_sec}}, {{eta}})",
             "INFO".bright_green(),
             "~".fg_rgb::<128, 128, 128>()
         )
         .as_str(),
     )?);
+    bar.inc(0);
 
     let client = hyper_client();
     let request = Request::builder()

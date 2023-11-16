@@ -1,24 +1,27 @@
 use std::net::IpAddr;
 
 use anyhow::Context;
-use async_once::AsyncOnce;
 use hyper::{Body, Request};
 use lazy_static::lazy_static;
+use tokio::sync::Mutex;
 
 use crate::{error_context, utils::hyper_client};
 
 lazy_static! {
-    pub static ref MY_IP: AsyncOnce<IpAddr> = AsyncOnce::new(async {
-        let ip = my_ip().await.context(error_context!());
-        if let Err(err) = ip {
-            log::error!("{:?}", err);
-            std::process::exit(0);
-        }
-        ip.unwrap()
-    });
+    static ref IP: Mutex<IpAddr> = Mutex::new(
+        "127.0.0.1"
+            .parse::<IpAddr>()
+            .context(error_context!())
+            .unwrap()
+    );
 }
 
-async fn my_ip() -> anyhow::Result<IpAddr> {
+pub async fn my_ip() -> anyhow::Result<IpAddr> {
+    let mut local_ip = IP.lock().await;
+    if !local_ip.to_string().eq("127.0.0.1") {
+        return Ok(*local_ip);
+    }
+
     let public_ip_source = vec![
         "https://wtfismyip.com/text",
         "http://api.ipify.org/",
@@ -43,7 +46,8 @@ async fn my_ip() -> anyhow::Result<IpAddr> {
         match body_str.trim().parse::<IpAddr>() {
             Ok(ip) => {
                 log::debug!("ext ip ({}) retrieved using host: {}", ip, source);
-                return Ok(ip);
+                *local_ip = ip;
+                return Ok(*local_ip);
             }
             Err(_) => continue,
         }

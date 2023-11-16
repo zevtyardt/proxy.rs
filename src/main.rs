@@ -8,8 +8,9 @@ use crate::{
     utils::{logger::setup_logger, tokio_runtime},
 };
 
+mod checkers;
 mod geolite;
-mod proxies;
+mod proxy;
 mod resolver;
 mod utils;
 
@@ -18,15 +19,16 @@ fn start_app() -> anyhow::Result<()> {
         setup_logger(Some(log::LevelFilter::Debug)).context(error_context!())?;
         if !check_geolite_db().await.context(error_context!())? {
             download_geolite_db().await.context(error_context!())?;
-            std::process::exit(0);
+            return Ok(());
         }
-
         Ok(())
     })
 }
 
 fn main() {
+    let instant = tokio::time::Instant::now();
     if let Err(err) = start_app() {
         log::error!("{:?}", err)
     }
+    log::info!("end: {:#?}", instant.elapsed())
 }

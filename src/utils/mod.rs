@@ -12,6 +12,7 @@ use crate::error_context;
 
 pub mod error;
 pub mod logger;
+pub mod random;
 
 pub async fn get_data_dir(file: Option<&str>) -> anyhow::Result<PathBuf> {
     let mut path = if let Some(path) = data_dir() {

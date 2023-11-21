@@ -13,6 +13,8 @@ pub struct Proxy {
     port: u16,
     geo: GeoData,
     types: Vec<String>,
+
+    runtimes: Vec<f64>,
     is_working: bool,
 }
 
@@ -30,8 +32,19 @@ impl Proxy {
             port,
             geo,
             types: vec![],
+            runtimes: vec![],
             is_working: false,
         })
+    }
+}
+
+impl Proxy {
+    fn avg_response_time(&self) -> f64 {
+        if self.runtimes.is_empty() {
+            return 0.0;
+        }
+        let sum: f64 = self.runtimes.iter().sum();
+        sum / self.runtimes.len() as f64
     }
 }
 
@@ -39,8 +52,9 @@ impl std::fmt::Display for Proxy {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "<Proxy {} [{}] {}:{}>",
+            "<Proxy {} {:.2}s [{}] {}:{}>",
             self.geo.iso_code.to_uppercase(),
+            self.avg_response_time(),
             self.types.join(", "),
             self.host,
             self.port

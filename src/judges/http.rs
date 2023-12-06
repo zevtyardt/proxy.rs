@@ -1,17 +1,16 @@
 use anyhow::Context;
 use lazy_static::lazy_static;
 use tokio::sync::Mutex;
-use url::Url;
 
 use crate::{error_context, utils::random::get_random_element};
 
-use super::check_all_host;
+use super::{check_all_host, Judge};
 
 lazy_static! {
-    static ref HOSTS: Mutex<Vec<Url>> = Mutex::new(vec![]);
+    static ref HOSTS: Mutex<Vec<Judge>> = Mutex::new(vec![]);
 }
 
-pub async fn get_http_judge() -> anyhow::Result<Url> {
+pub async fn get_http_judge() -> anyhow::Result<Judge> {
     let hosts = HOSTS.lock().await;
     if hosts.is_empty() {
         anyhow::bail!("hosts is empty, please initiate it first");

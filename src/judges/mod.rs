@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::Duration};
+use std::{fmt::Display, sync::Arc, time::Duration};
 
 use anyhow::Context;
 use futures_util::{stream::FuturesUnordered, StreamExt};
@@ -14,14 +14,39 @@ pub mod http;
 pub mod https;
 pub mod smtp;
 
-async fn check_all_host(hosts: Vec<&str>) -> anyhow::Result<Vec<Url>> {
+#[derive(Debug, Clone)]
+pub struct Judge {
+    pub scheme: String,
+    pub host: String,
+    pub path: String,
+}
+
+impl Display for Judge {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}://{}{}", self.scheme, self.host, self.path)
+    }
+}
+
+pub fn parse_url(url: &str) -> anyhow::Result<Judge> {
+    let parsed = Url::parse(url).context(error_context!())?;
+    if !parsed.has_host() {
+        anyhow::bail!("url does not have a valid host");
+    }
+    Ok(Judge {
+        scheme: parsed.scheme().to_uppercase(),
+        host: parsed.host_str().unwrap().to_string(),
+        path: parsed.path().to_string(),
+    })
+}
+
+async fn check_all_host(hosts: Vec<&str>) -> anyhow::Result<Vec<Judge>> {
     let mut results = vec![];
     let mut fut = FuturesUnordered::new();
     let sem = Arc::new(Semaphore::new(5));
 
     for host in hosts {
         let permit = Arc::clone(&sem).acquire_owned().await;
-        let host = Url::parse(host).context(error_context!())?;
+        let host = parse_url(host).context(error_context!())?;
         fut.push(async move {
             let _ = permit;
             match check_judge_host(&host).await.context(error_context!()) {
@@ -43,7 +68,7 @@ async fn check_all_host(hosts: Vec<&str>) -> anyhow::Result<Vec<Url>> {
     Ok(results)
 }
 
-async fn check_judge_host(judge: &Url) -> anyhow::Result<bool> {
+async fn check_judge_host(judge: &Judge) -> anyhow::Result<bool> {
     let connector = hyper_tls::native_tls::TlsConnector::builder()
         .danger_accept_invalid_certs(true)
         .danger_accept_invalid_hostnames(true)
